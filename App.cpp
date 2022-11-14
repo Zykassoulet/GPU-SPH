@@ -30,7 +30,7 @@ App::~App() {
 
     m_instance.destroy();
 
-    destroyWindow(m_window);
+    destroyWindow();
 }
 
 void App::createInstance() {
@@ -54,7 +54,12 @@ void App::createInstance() {
                                  "Physically-based Simulation Project",
                                  1,
                                  VK_MAKE_VERSION(1, 1, 0));
-    vk::InstanceCreateInfo create_info({}, &app_info, 0, nullptr, static_cast<u32>(extensions.size()), extensions.data());
+    vk::InstanceCreateInfo create_info({},
+                                       &app_info,
+                                       0,
+                                       nullptr,
+                                       static_cast<u32>(extensions.size()),
+                                       extensions.data());
 
     if (enable_validation_layers) {
         create_info.enabledLayerCount = static_cast<u32>(validation_layers.size());
@@ -88,8 +93,8 @@ void App::initWindow() {
     m_window = window;
 }
 
-void App::destroyWindow(GLFWwindow* window) {
-    glfwDestroyWindow(window);
+void App::destroyWindow() {
+    glfwDestroyWindow(m_window);
     glfwTerminate();
 }
 
@@ -170,7 +175,7 @@ QueueFamilyIndices App::findQueueFamilies(const vk::PhysicalDevice &device) {
     auto queue_families = device.getQueueFamilyProperties();
     u32 i = 0;
     for (const auto& family : queue_families) {
-        if (family.queueFlags & (vk::QueueFlagBits::eGraphics)) {
+        if (family.queueFlags & vk::QueueFlagBits::eGraphics) {
             indices.graphics_family = i;
         }
 
@@ -264,12 +269,12 @@ vk::PresentModeKHR App::chooseSwapPresentMode(const std::vector<vk::PresentModeK
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
+vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<u32>::max()) {
         return capabilities.currentExtent;
     } else {
         int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
+        glfwGetFramebufferSize(m_window, &width, &height);
 
         vk::Extent2D actualExtent = {
             static_cast<u32>(width),
@@ -283,7 +288,16 @@ vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities,
     }
 }
 
-vk::SwapchainKHR App::createSwapchain(vk::Device &device, GLFWwindow* window) {
+void App::createSwapchain() {
     // TODO: Implement
-    return vk::SwapchainKHR();
 }
+
+/*
+void App:createComputePipeline() {
+    vk::PipelineCacheCreateInfo cache_create_info({}, 0, nullptr);
+
+    vk::PipelineCache cache = m_device.createPipelineCache(cache_create_info);
+    vk::ComputePipelineCreateInfo create_info({}, //TODO);
+    auto compute_pipeline = m_device.createComputePipeline(cache, create_info);
+}
+ */

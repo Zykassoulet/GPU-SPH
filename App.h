@@ -77,14 +77,14 @@ private:
     vk::PhysicalDevice pickPhysicalDevice();
     void createDevice();
 
-    static vk::SurfaceFormatKHR chooseSwapchainFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats);
-    static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& available_present_modes);
-    static vk::Extent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window);
-    static vk::SwapchainKHR createSwapchain(vk::Device& device, GLFWwindow* window);
+    vk::SurfaceFormatKHR chooseSwapchainFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats);
+    vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& available_present_modes);
+    vk::Extent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    void createSwapchain();
 
     // GLFW stuff
     void initWindow();
-    static void destroyWindow(GLFWwindow* window);
+    void destroyWindow();
 
     // member variables
     vk::Instance m_instance;
@@ -94,6 +94,7 @@ private:
     Queues m_queues;
     GLFWwindow* m_window;
     vk::SurfaceKHR m_surface;
+    vk::SwapchainKHR m_swapchain;
 };
 
 
