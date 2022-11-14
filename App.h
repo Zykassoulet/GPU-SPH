@@ -63,19 +63,19 @@ private:
     static const bool enable_validation_layers = true;
     #endif
 
-    static vk::Instance createInstance();
+    void createInstance();
     static bool checkValidationLayerSupport();
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                                                         VkDebugUtilsMessageTypeFlagBitsEXT message_type,
                                                         const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                                         void* user_data);
-    static std::optional<vk::DebugUtilsMessengerEXT> setupDebugMessenger(vk::Instance& instance);
-    static vk::SurfaceKHR createSurface(vk::Instance& instance, GLFWwindow* window);
+    void setupDebugMessenger();
+    void createSurface();
     static bool checkDeviceExtensionSupport(const vk::PhysicalDevice& device);
-    static SwapchainSupportDetails querySwapchainSupport(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface);
-    static QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface);
-    static vk::PhysicalDevice pickPhysicalDevice(vk::Instance& instance, const vk::SurfaceKHR& surface);
-    static std::tuple<vk::Device, Queues> createDevice(vk::Instance& instance, const vk::SurfaceKHR& surface);
+    SwapchainSupportDetails querySwapchainSupport(const vk::PhysicalDevice& device);
+    QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device);
+    vk::PhysicalDevice pickPhysicalDevice();
+    void createDevice();
 
     static vk::SurfaceFormatKHR chooseSwapchainFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats);
     static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& available_present_modes);
@@ -83,7 +83,7 @@ private:
     static vk::SwapchainKHR createSwapchain(vk::Device& device, GLFWwindow* window);
 
     // GLFW stuff
-    static GLFWwindow* initWindow();
+    void initWindow();
     static void destroyWindow(GLFWwindow* window);
 
     // member variables
