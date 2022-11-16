@@ -9,24 +9,27 @@
 #include <cassert>
 
 #include "utils.h"
+#include "PhysicsEngine.h"
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
     std::optional<u32> present_family;
+    std::optional<u32> compute_family;
 
     bool isComplete() const {
-        return graphics_family.has_value() && present_family.has_value();
+        return graphics_family.has_value() && present_family.has_value() && compute_family.has_value();
     }
 
     std::set<u32> getUniqueFamilies() const {
         assert(isComplete());
-        return std::set<u32> {graphics_family.value(), present_family.value()};
+        return std::set<u32> {graphics_family.value(), present_family.value(), compute_family.value()};
     }
 };
 
 struct Queues {
     vk::Queue graphics;
     vk::Queue present;
+    vk::Queue compute;
 };
 
 struct SwapchainSupportDetails {
@@ -82,6 +85,12 @@ private:
     vk::Extent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     void createSwapchain();
 
+
+    vk::Buffer createBuffer(const u32 buffer_size, const u32 family_index);
+    vk::MemoryType findMemoryType();
+
+    void createComputePipeline();
+
     // GLFW stuff
     void initWindow();
     void destroyWindow();
@@ -91,10 +100,15 @@ private:
     vk::DispatchLoaderDynamic m_dispatcher;
     std::optional<vk::DebugUtilsMessengerEXT> m_debug_messenger;
     vk::Device m_device;
+    QueueFamilyIndices m_queue_family_indices;
     Queues m_queues;
     GLFWwindow* m_window;
     vk::SurfaceKHR m_surface;
     vk::SwapchainKHR m_swapchain;
+    vk::PhysicalDevice m_physical_device;
+    PhysicsEngine m_physics_engine;
+    i32* compute_in_buffer_ptr
+
 };
 
 

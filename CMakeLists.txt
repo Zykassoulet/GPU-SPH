@@ -3,7 +3,7 @@ project(project)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(project main.cpp App.cpp)
+add_executable(project main.cpp App.cpp "PhysicsEngine.h" "PhysicsEngine.cpp")
 
 find_package(Vulkan REQUIRED)
 add_subdirectory(vendor/glfw)

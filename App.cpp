@@ -1,4 +1,5 @@
 #include "App.h"
+#include "PhysicsEngine.h"
 
 #include <iostream>
 #include <limits>
@@ -7,6 +8,7 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
 App::App() {
+    m_physics_engine = PhysicsEngine();
     vk::DynamicLoader dl;
     auto vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
@@ -30,7 +32,7 @@ App::~App() {
 
     m_instance.destroy();
 
-    destroyWindow();
+    destroyWindow(m_window);
 }
 
 void App::createInstance() {
@@ -54,12 +56,7 @@ void App::createInstance() {
                                  "Physically-based Simulation Project",
                                  1,
                                  VK_MAKE_VERSION(1, 1, 0));
-    vk::InstanceCreateInfo create_info({},
-                                       &app_info,
-                                       0,
-                                       nullptr,
-                                       static_cast<u32>(extensions.size()),
-                                       extensions.data());
+    vk::InstanceCreateInfo create_info({}, &app_info, 0, nullptr, static_cast<u32>(extensions.size()), extensions.data());
 
     if (enable_validation_layers) {
         create_info.enabledLayerCount = static_cast<u32>(validation_layers.size());
@@ -93,8 +90,8 @@ void App::initWindow() {
     m_window = window;
 }
 
-void App::destroyWindow() {
-    glfwDestroyWindow(m_window);
+void App::destroyWindow(GLFWwindow* window) {
+    glfwDestroyWindow(window);
     glfwTerminate();
 }
 
@@ -175,13 +172,17 @@ QueueFamilyIndices App::findQueueFamilies(const vk::PhysicalDevice &device) {
     auto queue_families = device.getQueueFamilyProperties();
     u32 i = 0;
     for (const auto& family : queue_families) {
-        if (family.queueFlags & vk::QueueFlagBits::eGraphics) {
+        if (family.queueFlags & (vk::QueueFlagBits::eGraphics)) {
             indices.graphics_family = i;
         }
 
         bool present_support = device.getSurfaceSupportKHR(i, m_surface);
         if (present_support) {
             indices.present_family = i;
+        }
+
+        if (family.queueFlags & (vk::QueueFlagBits::eCompute)) {
+            indices.compute_family = i;
         }
 
         if (indices.isComplete())
@@ -214,7 +215,10 @@ void App::createDevice() {
     Queues queues;
     queues.graphics = device.getQueue(indices.graphics_family.value(), 0);
     queues.present = device.getQueue(indices.present_family.value(), 0);
+    queues.compute = device.getQueue(indices.compute_family.value(), 0);
 
+    m_queue_family_indices = indices;
+    m_physical_device = physical_device;
     m_device = device;
     m_queues = queues;
 }
@@ -269,12 +273,12 @@ vk::PresentModeKHR App::chooseSwapPresentMode(const std::vector<vk::PresentModeK
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
     if (capabilities.currentExtent.width != std::numeric_limits<u32>::max()) {
         return capabilities.currentExtent;
     } else {
         int width, height;
-        glfwGetFramebufferSize(m_window, &width, &height);
+        glfwGetFramebufferSize(window, &width, &height);
 
         vk::Extent2D actualExtent = {
             static_cast<u32>(width),
@@ -288,16 +292,65 @@ vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
     }
 }
 
-void App::createSwapchain() {
+vk::SwapchainKHR App::createSwapchain(vk::Device &device, GLFWwindow* window) {
     // TODO: Implement
+    return vk::SwapchainKHR();
 }
 
-/*
-void App:createComputePipeline() {
-    vk::PipelineCacheCreateInfo cache_create_info({}, 0, nullptr);
 
-    vk::PipelineCache cache = m_device.createPipelineCache(cache_create_info);
-    vk::ComputePipelineCreateInfo create_info({}, //TODO);
-    auto compute_pipeline = m_device.createComputePipeline(cache, create_info);
+vk::Buffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
+    vk::BufferCreateInfo BufferCreateInfo{
+    vk::BufferCreateFlags(),                    // Flags
+    buffer_size,                                 // Size
+    vk::BufferUsageFlagBits::eStorageBuffer,    // Usage
+    vk::SharingMode::eExclusive,                // Sharing mode
+    1,                                          // Number of queue family indices
+    &family_index                  // List of queue family indices
+    };
+    return m_device.createBuffer(BufferCreateInfo);
 }
- */
+
+void App::createComputePipeline() {
+    //to implement
+
+    u32 buffer_size = ;
+    vk::Buffer in_buffer = createBuffer(buffer_size,m_queue_family_indices.compute_family);
+    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family);
+
+    vk::MemoryRequirements in_buffer_memory_requirements = m_device.getBufferMemoryRequirements(in_buffer);
+    vk::MemoryRequirements out_buffer_memory_requirements = m_device.getBufferMemoryRequirements(out_buffer);
+
+    //get correct memory property
+
+    vk::PhysicalDeviceMemoryProperties memory_properties = m_physical_device.getMemoryProperties();
+    u32 memory_type_index = 0;
+    vk::DeviceSize memory_size = 0;
+    for (u32 CurrentMemoryTypeIndex = 0; CurrentMemoryTypeIndex < memory_properties.memoryTypeCount; ++CurrentMemoryTypeIndex) {
+        
+        vk::MemoryType memory_type = memory_properties.memoryTypes[CurrentMemoryTypeIndex];
+        if ((vk::MemoryPropertyFlagBits::eHostVisible & memory_type.propertyFlags) &&
+            (vk::MemoryPropertyFlagBits::eHostCoherent & memory_type.propertyFlags))
+        {
+            memory_size = memory_properties.memoryHeaps[memory_type.heapIndex].size;
+            memory_type_index = CurrentMemoryTypeIndex;
+            break;
+        }
+    }
+
+    vk::MemoryAllocateInfo in_buffer_memory_allocate_info(in_buffer_memory_requirements.size, memory_type_index);
+    vk::MemoryAllocateInfo out_buffer_memory_allocate_info(out_buffer_memory_requirements.size, memory_type_index);
+    vk::DeviceMemory in_buffer_memory = m_device.allocateMemory(in_buffer_memory_allocate_info);
+    vk::DeviceMemory out_buffer_memory = m_device.allocateMemory(out_buffer_memory_allocate_info);
+
+    compute_in_buffer_ptr = static_cast<i32*>(m_device.mapMemory(in_buffer_memory, 0, buffer_size));
+    m_device.bindBufferMemory(in_buffer, in_buffer_memory, 0);
+    m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
+}
+
+
+
+
+
+
+
+
