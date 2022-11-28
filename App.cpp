@@ -1,6 +1,6 @@
+#define VMA_IMPLEMENTATION
 #include "App.h"
 #include "PhysicsEngine.h"
-#include "vkinit.h"
 
 #include <iostream>
 #include <limits>
@@ -8,7 +8,8 @@
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
-App::App() : m_physics_engine() {
+App::App() {
+    m_physics_engine = PhysicsEngine();
     vk::DynamicLoader dl;
     auto vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
@@ -19,10 +20,11 @@ App::App() : m_physics_engine() {
     createSurface();
     createDevice();
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
-    initComputePipeline();
+    createVmaAllocator();
 }
 
 App::~App() {
+    destroyVmaAllocator();
     m_device.destroy();
 
     m_instance.destroySurfaceKHR(m_surface);
@@ -33,7 +35,7 @@ App::~App() {
 
     m_instance.destroy();
 
-    destroyWindow(m_window);
+    destroyWindow();
 }
 
 void App::createInstance() {
@@ -91,8 +93,8 @@ void App::initWindow() {
     m_window = window;
 }
 
-void App::destroyWindow(GLFWwindow* window) {
-    glfwDestroyWindow(window);
+void App::destroyWindow() {
+    glfwDestroyWindow(m_window);
     glfwTerminate();
 }
 
@@ -274,12 +276,12 @@ vk::PresentModeKHR App::chooseSwapPresentMode(const std::vector<vk::PresentModeK
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
+vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<u32>::max()) {
         return capabilities.currentExtent;
     } else {
         int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
+        glfwGetFramebufferSize(m_window, &width, &height);
 
         vk::Extent2D actualExtent = {
             static_cast<u32>(width),
@@ -293,22 +295,29 @@ vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities,
     }
 }
 
-vk::SwapchainKHR App::createSwapchain(vk::Device &device, GLFWwindow* window) {
+void App::createSwapchain() {
     // TODO: Implement
-    return vk::SwapchainKHR();
 }
 
 
+vk::Buffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
+    vk::BufferCreateInfo BufferCreateInfo{
+    vk::BufferCreateFlags(),                    // Flags
+    buffer_size,                                 // Size
+    vk::BufferUsageFlagBits::eStorageBuffer,    // Usage
+    vk::SharingMode::eExclusive,                // Sharing mode
+    1,                                          // Number of queue family indices
+    &family_index                  // List of queue family indices
+    };
+    return m_device.createBuffer(BufferCreateInfo);
+}
 
-void App::initComputePipeline() {
+void App::createComputePipeline() {
     //to implement
 
-    m_compute_pipeline = ComputePipeline();
-    m_compute_pipeline.init
-
-    u32 buffer_size = ;
-    vk::Buffer in_buffer = createBuffer(buffer_size,m_queue_family_indices.compute_family);
-    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family);
+    u32 buffer_size = 1024;
+    vk::Buffer in_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
+    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
 
     vk::MemoryRequirements in_buffer_memory_requirements = m_device.getBufferMemoryRequirements(in_buffer);
     vk::MemoryRequirements out_buffer_memory_requirements = m_device.getBufferMemoryRequirements(out_buffer);
@@ -339,6 +348,27 @@ void App::initComputePipeline() {
     m_device.bindBufferMemory(in_buffer, in_buffer_memory, 0);
     m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
 }
+
+void App::createVmaAllocator() {
+    VmaVulkanFunctions vulkanFunctions = {};
+    vulkanFunctions.vkGetInstanceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr;
+
+    VmaAllocatorCreateInfo allocatorCreateInfo = {};
+    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_1;
+    allocatorCreateInfo.physicalDevice = m_physical_device;
+    allocatorCreateInfo.device = m_device;
+    allocatorCreateInfo.instance = m_instance;
+    allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+
+    vmaCreateAllocator(&allocatorCreateInfo, &m_allocator);
+}
+
+
+void App::destroyVmaAllocator() {
+    vmaDestroyAllocator(m_allocator);
+}
+
 
 
 
