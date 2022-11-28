@@ -1,3 +1,4 @@
+#define VMA_IMPLEMENTATION
 #include "App.h"
 #include "PhysicsEngine.h"
 
@@ -19,9 +20,11 @@ App::App() {
     createSurface();
     createDevice();
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
+    createVmaAllocator();
 }
 
 App::~App() {
+    destroyVmaAllocator();
     m_device.destroy();
 
     m_instance.destroySurfaceKHR(m_surface);
@@ -32,7 +35,7 @@ App::~App() {
 
     m_instance.destroy();
 
-    destroyWindow(m_window);
+    destroyWindow();
 }
 
 void App::createInstance() {
@@ -90,8 +93,8 @@ void App::initWindow() {
     m_window = window;
 }
 
-void App::destroyWindow(GLFWwindow* window) {
-    glfwDestroyWindow(window);
+void App::destroyWindow() {
+    glfwDestroyWindow(m_window);
     glfwTerminate();
 }
 
@@ -273,12 +276,12 @@ vk::PresentModeKHR App::chooseSwapPresentMode(const std::vector<vk::PresentModeK
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
+vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<u32>::max()) {
         return capabilities.currentExtent;
     } else {
         int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
+        glfwGetFramebufferSize(m_window, &width, &height);
 
         vk::Extent2D actualExtent = {
             static_cast<u32>(width),
@@ -292,9 +295,8 @@ vk::Extent2D App::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities,
     }
 }
 
-vk::SwapchainKHR App::createSwapchain(vk::Device &device, GLFWwindow* window) {
+void App::createSwapchain() {
     // TODO: Implement
-    return vk::SwapchainKHR();
 }
 
 
@@ -313,9 +315,9 @@ vk::Buffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
 void App::createComputePipeline() {
     //to implement
 
-    u32 buffer_size = ;
-    vk::Buffer in_buffer = createBuffer(buffer_size,m_queue_family_indices.compute_family);
-    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family);
+    u32 buffer_size = 1024;
+    vk::Buffer in_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
+    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
 
     vk::MemoryRequirements in_buffer_memory_requirements = m_device.getBufferMemoryRequirements(in_buffer);
     vk::MemoryRequirements out_buffer_memory_requirements = m_device.getBufferMemoryRequirements(out_buffer);
@@ -347,8 +349,25 @@ void App::createComputePipeline() {
     m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
 }
 
+void App::createVmaAllocator() {
+    VmaVulkanFunctions vulkanFunctions = {};
+    vulkanFunctions.vkGetInstanceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr;
+
+    VmaAllocatorCreateInfo allocatorCreateInfo = {};
+    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_1;
+    allocatorCreateInfo.physicalDevice = m_physical_device;
+    allocatorCreateInfo.device = m_device;
+    allocatorCreateInfo.instance = m_instance;
+    allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+
+    vmaCreateAllocator(&allocatorCreateInfo, &m_allocator);
+}
 
 
+void App::destroyVmaAllocator() {
+    vmaDestroyAllocator(m_allocator);
+}
 
 
 
