@@ -3,7 +3,7 @@
 
 
 
-vk::BufferCreateInfo VKInit::createBuffer(const u32 buffer_size, const u32 family_index) {
+vk::BufferCreateInfo VKInit::createBufferInfo(const u32 buffer_size, const u32 family_index) {
     vk::BufferCreateInfo BufferCreateInfo{
     vk::BufferCreateFlags(),                    // Flags
     buffer_size,                                 // Size

@@ -1,3 +1,16 @@
 [submodule "vendor/glfw"]
 	path = vendor/glfw
 	url = https://github.com/glfw/glfw
+[submodule "vendor/fidelityfx-parallelsort"]
+	path = vendor/fidelityfx-parallelsort
+	url = https://github.com/GPUOpen-Effects/FidelityFX-ParallelSort
+[submodule "vendor/spirv-reflect"]
+	path = vendor/spirv-reflect
+	url = git@github.com:KhronosGroup/SPIRV-Reflect.git
+[submodule "vendor/vma"]
+	path = vendor/vma
+	url = git@github.com:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "vendor/glm"]
+	path = vendor/glm
+	url = https://github.com/g-truc/glm.git
+

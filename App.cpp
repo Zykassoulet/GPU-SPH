@@ -340,15 +340,6 @@ void App::initComputePipeline() {
     m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
 }
 
-struct A;
-
-
-void f(A* a);
-
-struct A {
-    int a;
-};
-
 
 
 

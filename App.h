@@ -38,6 +38,10 @@ struct SwapchainSupportDetails {
     std::vector<vk::PresentModeKHR> present_modes;
 };
 
+struct VKParams {
+
+};
+
 class App {
 public:
     App();
@@ -86,10 +90,9 @@ private:
     void createSwapchain();
 
 
-    vk::Buffer createBuffer(const u32 buffer_size, const u32 family_index);
     vk::MemoryType findMemoryType();
 
-    void createComputePipeline();
+    void initComputePipeline();
 
     // GLFW stuff
     void initWindow();
@@ -107,7 +110,8 @@ private:
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
     PhysicsEngine m_physics_engine;
-    i32* compute_in_buffer_ptr
+    
+
 
 };
 
