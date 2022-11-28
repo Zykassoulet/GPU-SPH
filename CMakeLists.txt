@@ -8,13 +8,12 @@ add_executable(project main.cpp
         PhysicsEngine.cpp
         GPURadixSorter.cpp
         VulkanHelpers.cpp
-        vendor/spirv-reflect/spirv_reflect.cpp)
+        vendor/spirv-reflect/spirv_reflect.cpp
+        ComputePipeline.cpp)
 
-find_package(Vulkan REQUIRED)
-add_subdirectory(vendor/glfw)
+#find_package(Vulkan REQUIRED)
+add_subdirectory(vendor)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${Vulkan_INCLUDE_DIRS} vendor/glfw/include vendor/fidelityfx-parallelsort/ffx-parallelsort vendor/spirv-reflect vendor/vma/include)
-target_link_libraries(${PROJECT_NAME} glfw)
 
 set(SHADER_BUILD_DIR shaders/build)
 
