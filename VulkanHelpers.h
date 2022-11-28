@@ -10,6 +10,7 @@
 
 class VulkanBuffer {
 public:
+    VulkanBuffer() = default;
     VulkanBuffer(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {});
 
     VulkanBuffer(const VulkanBuffer& other) = delete; // Disallow copying

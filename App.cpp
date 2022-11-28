@@ -300,53 +300,53 @@ void App::createSwapchain() {
 }
 
 
-vk::Buffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
-    vk::BufferCreateInfo BufferCreateInfo{
-    vk::BufferCreateFlags(),                    // Flags
-    buffer_size,                                 // Size
-    vk::BufferUsageFlagBits::eStorageBuffer,    // Usage
-    vk::SharingMode::eExclusive,                // Sharing mode
-    1,                                          // Number of queue family indices
-    &family_index                  // List of queue family indices
+VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
+    vk::BufferCreateInfo buffer_create_info {
+        vk::BufferCreateFlags(),                    // Flags
+        buffer_size,                                 // Size
+        vk::BufferUsageFlagBits::eStorageBuffer,    // Usage
+        vk::SharingMode::eExclusive,                // Sharing mode
+        1,                                          // Number of queue family indices
+        &family_index                  // List of queue family indices
     };
-    return m_device.createBuffer(BufferCreateInfo);
+    return {m_allocator, buffer_create_info};
 }
 
 void App::createComputePipeline() {
     //to implement
-
-    u32 buffer_size = 1024;
-    vk::Buffer in_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
-    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
-
-    vk::MemoryRequirements in_buffer_memory_requirements = m_device.getBufferMemoryRequirements(in_buffer);
-    vk::MemoryRequirements out_buffer_memory_requirements = m_device.getBufferMemoryRequirements(out_buffer);
-
-    //get correct memory property
-
-    vk::PhysicalDeviceMemoryProperties memory_properties = m_physical_device.getMemoryProperties();
-    u32 memory_type_index = 0;
-    vk::DeviceSize memory_size = 0;
-    for (u32 CurrentMemoryTypeIndex = 0; CurrentMemoryTypeIndex < memory_properties.memoryTypeCount; ++CurrentMemoryTypeIndex) {
-        
-        vk::MemoryType memory_type = memory_properties.memoryTypes[CurrentMemoryTypeIndex];
-        if ((vk::MemoryPropertyFlagBits::eHostVisible & memory_type.propertyFlags) &&
-            (vk::MemoryPropertyFlagBits::eHostCoherent & memory_type.propertyFlags))
-        {
-            memory_size = memory_properties.memoryHeaps[memory_type.heapIndex].size;
-            memory_type_index = CurrentMemoryTypeIndex;
-            break;
-        }
-    }
-
-    vk::MemoryAllocateInfo in_buffer_memory_allocate_info(in_buffer_memory_requirements.size, memory_type_index);
-    vk::MemoryAllocateInfo out_buffer_memory_allocate_info(out_buffer_memory_requirements.size, memory_type_index);
-    vk::DeviceMemory in_buffer_memory = m_device.allocateMemory(in_buffer_memory_allocate_info);
-    vk::DeviceMemory out_buffer_memory = m_device.allocateMemory(out_buffer_memory_allocate_info);
-
-    compute_in_buffer_ptr = static_cast<i32*>(m_device.mapMemory(in_buffer_memory, 0, buffer_size));
-    m_device.bindBufferMemory(in_buffer, in_buffer_memory, 0);
-    m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
+//
+//    u32 buffer_size = 1024;
+//    vk::Buffer in_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
+//    vk::Buffer out_buffer = createBuffer(buffer_size, m_queue_family_indices.compute_family.value());
+//
+//    vk::MemoryRequirements in_buffer_memory_requirements = m_device.getBufferMemoryRequirements(in_buffer);
+//    vk::MemoryRequirements out_buffer_memory_requirements = m_device.getBufferMemoryRequirements(out_buffer);
+//
+//    //get correct memory property
+//
+//    vk::PhysicalDeviceMemoryProperties memory_properties = m_physical_device.getMemoryProperties();
+//    u32 memory_type_index = 0;
+//    vk::DeviceSize memory_size = 0;
+//    for (u32 CurrentMemoryTypeIndex = 0; CurrentMemoryTypeIndex < memory_properties.memoryTypeCount; ++CurrentMemoryTypeIndex) {
+//
+//        vk::MemoryType memory_type = memory_properties.memoryTypes[CurrentMemoryTypeIndex];
+//        if ((vk::MemoryPropertyFlagBits::eHostVisible & memory_type.propertyFlags) &&
+//            (vk::MemoryPropertyFlagBits::eHostCoherent & memory_type.propertyFlags))
+//        {
+//            memory_size = memory_properties.memoryHeaps[memory_type.heapIndex].size;
+//            memory_type_index = CurrentMemoryTypeIndex;
+//            break;
+//        }
+//    }
+//
+//    vk::MemoryAllocateInfo in_buffer_memory_allocate_info(in_buffer_memory_requirements.size, memory_type_index);
+//    vk::MemoryAllocateInfo out_buffer_memory_allocate_info(out_buffer_memory_requirements.size, memory_type_index);
+//    vk::DeviceMemory in_buffer_memory = m_device.allocateMemory(in_buffer_memory_allocate_info);
+//    vk::DeviceMemory out_buffer_memory = m_device.allocateMemory(out_buffer_memory_allocate_info);
+//
+//    compute_in_buffer_ptr = static_cast<i32*>(m_device.mapMemory(in_buffer_memory, 0, buffer_size));
+//    m_device.bindBufferMemory(in_buffer, in_buffer_memory, 0);
+//    m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
 }
 
 void App::createVmaAllocator() {
