@@ -1,5 +1,6 @@
 #include "App.h"
 #include "PhysicsEngine.h"
+#include "vkinit.h"
 
 #include <iostream>
 #include <limits>
@@ -7,8 +8,7 @@
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
-App::App() {
-    m_physics_engine = PhysicsEngine();
+App::App() : m_physics_engine() {
     vk::DynamicLoader dl;
     auto vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
@@ -19,6 +19,7 @@ App::App() {
     createSurface();
     createDevice();
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
+    initComputePipeline();
 }
 
 App::~App() {
@@ -298,20 +299,12 @@ vk::SwapchainKHR App::createSwapchain(vk::Device &device, GLFWwindow* window) {
 }
 
 
-vk::Buffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
-    vk::BufferCreateInfo BufferCreateInfo{
-    vk::BufferCreateFlags(),                    // Flags
-    buffer_size,                                 // Size
-    vk::BufferUsageFlagBits::eStorageBuffer,    // Usage
-    vk::SharingMode::eExclusive,                // Sharing mode
-    1,                                          // Number of queue family indices
-    &family_index                  // List of queue family indices
-    };
-    return m_device.createBuffer(BufferCreateInfo);
-}
 
-void App::createComputePipeline() {
+void App::initComputePipeline() {
     //to implement
+
+    m_compute_pipeline = ComputePipeline();
+    m_compute_pipeline.init
 
     u32 buffer_size = ;
     vk::Buffer in_buffer = createBuffer(buffer_size,m_queue_family_indices.compute_family);
@@ -347,9 +340,14 @@ void App::createComputePipeline() {
     m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
 }
 
+struct A;
 
 
+void f(A* a);
 
+struct A {
+    int a;
+};
 
 
 
