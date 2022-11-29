@@ -30,9 +30,7 @@ ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &f
    return {shader_module, std::move(reflection)};
 }
 
-vk::Pipeline createPipeline(vk::Device& device, vk::PipelineLayout& layout) {
-    //device.createComputePipeline()
-}
+
 
 VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info,
                            VmaAllocationCreateInfo alloc_info) {

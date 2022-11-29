@@ -8,13 +8,13 @@
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #include <vk_mem_alloc.h>
 
-#include <optional>
-#include <set>
-#include <cassert>
+
 
 #include "utils.h"
 #include "PhysicsEngine.h"
 #include "VulkanHelpers.h"
+
+
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -42,6 +42,7 @@ struct SwapchainSupportDetails {
     std::vector<vk::SurfaceFormatKHR> formats;
     std::vector<vk::PresentModeKHR> present_modes;
 };
+
 
 class App {
 public:
@@ -94,9 +95,8 @@ private:
 
 
     VulkanBuffer createBuffer(const u32 buffer_size, const u32 family_index);
-    vk::MemoryType findMemoryType();
 
-    void createComputePipeline();
+    void initComputePipeline();
 
     // GLFW stuff
     void initWindow();
@@ -115,7 +115,6 @@ private:
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
     PhysicsEngine m_physics_engine;
-    i32* compute_in_buffer_ptr;
 
     void destroyVmaAllocator();
 

@@ -9,7 +9,6 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
 App::App() {
-    m_physics_engine = PhysicsEngine();
     vk::DynamicLoader dl;
     auto vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
@@ -21,6 +20,7 @@ App::App() {
     createDevice();
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
     createVmaAllocator();
+    initComputePipeline();
 }
 
 App::~App() {
@@ -312,7 +312,12 @@ VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
     return {m_allocator, buffer_create_info};
 }
 
-void App::createComputePipeline() {
+void App::initComputePipeline() {
+
+    m_physics_engine.initComputePipeline(this);
+
+
+
     //to implement
 //
 //    u32 buffer_size = 1024;
