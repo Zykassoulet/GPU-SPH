@@ -10,7 +10,7 @@
 class GPURadixSorter {
 public:
     GPURadixSorter(App& app);
-    std::tuple<VulkanBuffer &, VulkanBuffer &> sort(vk::CommandBuffer cmd_buf, VulkanBuffer &key_buf, VulkanBuffer &key_ping_pong_buf, VulkanBuffer &value_buf);
+    std::tuple<VulkanBuffer&, VulkanBuffer&> sort(vk::CommandBuffer cmd_buf, VulkanBuffer &key_buf, VulkanBuffer &key_ping_pong_buf, VulkanBuffer &value_buf);
 
 private:
 
