@@ -4,9 +4,12 @@
 #include "VulkanInclude.h"
 #include "VulkanHelpers.h"
 
+class App;
+class PhysicsEngine;
+
 class ComputePipeline {
 public:
-	void init(App* app_ptr,PhysicsEngine* phy_eng_ptr);
+	void init(App* app_ptr, PhysicsEngine* phy_eng_ptr);
 
 private:
 	 App* m_app_ptr;

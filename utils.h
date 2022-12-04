@@ -12,8 +12,3 @@ using i32 = int32_t;
 using i64 = int64_t;
 using isize = intptr_t;
 using usize = uintptr_t;
-
-//forward declaration
-
-class App;
-class PhysicsEngine;
