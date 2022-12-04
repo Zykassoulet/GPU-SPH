@@ -4,7 +4,6 @@
 #include "VulkanInclude.h"
 #include "VulkanHelpers.h"
 
-
 class ComputePipeline {
 
 public:
