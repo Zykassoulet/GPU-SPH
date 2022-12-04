@@ -114,7 +114,3 @@ private:
 
     friend class GPURadixSorter;
 };
-
-
-
-

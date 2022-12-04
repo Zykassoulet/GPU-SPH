@@ -7,7 +7,6 @@
 
 #include "utils.h"
 
-
 class VulkanBuffer {
 public:
     VulkanBuffer() = default;

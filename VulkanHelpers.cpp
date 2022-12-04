@@ -1,7 +1,3 @@
-//
-// Created by Moritz Kuntze on 28/11/2022.
-//
-
 #include "VulkanHelpers.h"
 #include "utils.h"
 #include "spirv_reflect.h"

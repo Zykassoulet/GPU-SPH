@@ -6,4 +6,3 @@ void ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
 
 	//TODO :other thing 
 }
-

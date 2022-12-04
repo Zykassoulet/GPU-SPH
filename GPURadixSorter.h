@@ -20,7 +20,3 @@ private:
     VulkanBuffer m_scratch_buffer;
     VulkanBuffer m_reduced_scratch_buffer;
 };
-
-
-
-
