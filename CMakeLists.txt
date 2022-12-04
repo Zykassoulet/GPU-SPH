@@ -8,6 +8,7 @@ add_executable(project main.cpp
         PhysicsEngine.cpp
         GPURadixSorter.cpp
         VulkanHelpers.cpp
+        ComputePipeline.cpp
         vendor/spirv-reflect/spirv_reflect.cpp)
 
 find_package(Vulkan REQUIRED)
