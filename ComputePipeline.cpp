@@ -1,4 +1,5 @@
 #include "ComputePipeline.h"
+#include "PhysicsEngine.h"
 
 void ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
 	m_phy_eng_ptr = phy_eng_ptr;
@@ -6,11 +7,11 @@ void ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
 
 
 	vk::BufferCreateInfo bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.sType = vk::StructureType::eBufferCreateInfo;
 	//this is the total size, in bytes, of the buffer we are allocating
 	bufferInfo.size = m_phy_eng_ptr->m_number_particles * sizeof(glm::vec3);
 	//this buffer is going to be used as a Vertex Buffer
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer;
 
 
 	//let the VMA library know that this data should be writeable by CPU, but also readable by GPU

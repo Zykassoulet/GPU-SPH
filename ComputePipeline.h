@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "VulkanInclude.h"
 #include "VulkanHelpers.h"
+#include "glm/glm.hpp"
 
 class App;
 class PhysicsEngine;

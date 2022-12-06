@@ -22,6 +22,9 @@ public:
 
     vk::Buffer& get();
 
+    template<typename T>
+    void load_data(std::vector<T> data_vec);
+
 
 private:
     vk::Buffer m_buffer;
