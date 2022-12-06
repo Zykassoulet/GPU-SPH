@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "utils.h"
 #include "ComputePipeline.h"
 #include "glm/glm.hpp"

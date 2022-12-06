@@ -1,16 +1,15 @@
 #pragma once
 
+#include "VulkanInclude.h"
 #include <GLFW/glfw3.h>
 
-
-
-
-include "utils.h"
+#include "utils.h"
 #include "PhysicsEngine.h"
 
 #include "VulkanHelpers.h"
 
-
+#include <optional>
+#include <set>
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -117,7 +116,3 @@ private:
     friend class GPURadixSorter;
     friend class ComputePipeline;
 };
-
-
-
-

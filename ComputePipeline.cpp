@@ -1,8 +1,6 @@
 #include "ComputePipeline.h"
 
-
-
-ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
+void ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
 	m_phy_eng_ptr = phy_eng_ptr;
 	m_app_ptr = app_ptr;
 
@@ -59,4 +57,3 @@ ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
 //    m_device.bindBufferMemory(in_buffer, in_buffer_memory, 0);
 //    m_device.bindBufferMemory(out_buffer, out_buffer_memory, 0);
 }
-

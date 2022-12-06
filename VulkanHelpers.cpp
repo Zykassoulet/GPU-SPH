@@ -1,7 +1,3 @@
-//
-// Created by Moritz Kuntze on 28/11/2022.
-//
-
 #include "VulkanHelpers.h"
 #include "utils.h"
 #include "spirv_reflect.h"
@@ -30,8 +26,6 @@ ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &f
    return {shader_module, std::move(reflection)};
 }
 
-
-
 VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info,
                            VmaAllocationCreateInfo alloc_info) {
 
@@ -40,7 +34,8 @@ VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create
     }
 
     m_allocator = allocator;
-    //TODO:
+    auto result = vmaCreateBuffer(m_allocator, &static_cast<VkBufferCreateInfo&>(create_info), &alloc_info, &reinterpret_cast<VkBuffer&>(m_buffer), &m_allocation, nullptr);
+    assert(result == VK_SUCCESS);
 }
 
 VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept : m_allocation(std::exchange(other.m_allocation, nullptr)), m_buffer(other.m_buffer), m_allocator(other.m_allocator) {}
