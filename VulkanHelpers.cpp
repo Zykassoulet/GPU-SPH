@@ -40,6 +40,7 @@ VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create
     }
 
     m_allocator = allocator;
+    //TODO:
 }
 
 VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept : m_allocation(std::exchange(other.m_allocation, nullptr)), m_buffer(other.m_buffer), m_allocator(other.m_allocator) {}
@@ -60,4 +61,14 @@ VulkanBuffer::~VulkanBuffer() {
 
 vk::Buffer& VulkanBuffer::get() {
     return m_buffer;
+}
+
+template<typename T>
+void VulkanBuffer::load_data(std::vector<T> data_vec) { //IS IT CLEAN?
+    void* data;
+    vmaMapMemory(m_allocator, m_allocation, &data);
+
+    memcpy(data, data_vec.data(), data_vec.size() * sizeof(T));
+
+    vmaUnmapMemory(m_allocator, m_allocation);
 }

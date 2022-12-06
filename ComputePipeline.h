@@ -17,6 +17,7 @@ public:
 private:
 	 App* m_app_ptr;
 	 PhysicsEngine* m_phy_eng_ptr;
+	 VulkanBuffer m_pos_buf;
 
 
 };

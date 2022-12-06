@@ -18,4 +18,6 @@ private:
 	u32 m_number_particles;
 	std::vector<glm::vec3> m_particles;
 	ComputePipeline m_compute_pipeline;
+
+	friend class ComputePipeline;
 };

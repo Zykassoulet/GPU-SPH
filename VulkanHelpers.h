@@ -29,6 +29,7 @@ public:
 
     vk::Buffer& get();
 
+
 private:
     vk::Buffer m_buffer;
     VmaAllocation m_allocation;
