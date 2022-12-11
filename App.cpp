@@ -103,7 +103,7 @@ void App::destroyWindow() {
 }
 
 void App::mainLoop() {
-    auto radix_sorter = GPURadixSorter(*this);
+    auto radix_sorter = GPURadixSorter(*this, 1024);
 
     std::vector<u32> data(256);
     std::iota(data.begin(), data.end(), 0);

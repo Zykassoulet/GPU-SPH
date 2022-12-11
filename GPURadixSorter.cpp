@@ -116,10 +116,9 @@ vk::CommandBuffer GPURadixSorter::sort(
     return cmd_buf;
 }
 
-GPURadixSorter::GPURadixSorter(App& app) {
+GPURadixSorter::GPURadixSorter(App& app, u32 max_keys) {
     m_app = &app;
-    // FIXME: Make max_num_keys dynamic and re-allocate scratch buffers if necessary
-    FFX_ParallelSort_CalculateScratchResourceSize(1024, m_scratch_buffer_size, m_reduced_scratch_buffer_size);
+    FFX_ParallelSort_CalculateScratchResourceSize(max_keys, m_scratch_buffer_size, m_reduced_scratch_buffer_size);
 
     allocateScratchBuffers(m_scratch_buffer_size, m_reduced_scratch_buffer_size);
     createDescriptorPool();
@@ -316,6 +315,13 @@ void GPURadixSorter::bindInputOutputBuffers(vk::Buffer& key_buf, vk::Buffer& key
     buffers[2] = payload_ping_pong_buf;
     buffers[3] = payload_buf;
     bindBuffers(buffers, m_descriptor_sets.input_output_sets[1], 0, 4);
+}
+
+void GPURadixSorter::setMaxKeys(u32 max_keys) {
+    FFX_ParallelSort_CalculateScratchResourceSize(max_keys, m_scratch_buffer_size, m_reduced_scratch_buffer_size);
+
+    allocateScratchBuffers(m_scratch_buffer_size, m_reduced_scratch_buffer_size);
+    bindStaticBufferDescriptors();
 }
 
 std::array<vk::DescriptorSetLayout, 6> GPURadixSorterDescriptorSets::get_layouts() {

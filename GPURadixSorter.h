@@ -32,8 +32,10 @@ struct GPURadixSorterDescriptorSets {
 
 class GPURadixSorter {
 public:
-    GPURadixSorter(App& app);
+    GPURadixSorter(App& app, u32 max_keys);
     vk::CommandBuffer sort(u32 num_keys, VulkanBuffer &key_buf, VulkanBuffer &key_ping_pong_buf, VulkanBuffer &value_buf, VulkanBuffer& value_ping_pong_buf);
+
+    void setMaxKeys(u32 max_keys);
 
     ~GPURadixSorter();
     GPURadixSorter(const GPURadixSorter&) = delete;
