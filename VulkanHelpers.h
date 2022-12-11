@@ -23,7 +23,24 @@ public:
     vk::Buffer& get();
 
     template<typename T>
-    void load_data(std::vector<T> data_vec);
+    void store_data(T* data, u32 count) {
+        void* mapped;
+        vmaMapMemory(m_allocator, m_allocation, &mapped);
+
+        memcpy(mapped, data, count * sizeof(T));
+
+        vmaUnmapMemory(m_allocator, m_allocation);
+    }
+
+    template<typename T>
+    void load_data(T* data, u32 count) {
+        void* mapped;
+        vmaMapMemory(m_allocator, m_allocation, &mapped);
+
+        memcpy(data, mapped, count * sizeof(T));
+
+        vmaUnmapMemory(m_allocator, m_allocation);
+    }
 
 
 private:
@@ -32,9 +49,4 @@ private:
     VmaAllocator m_allocator;
 };
 
-struct ShaderModule {
-    vk::ShaderModule vulkan;
-    spv_reflect::ShaderModule reflection;
-};
-
-ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &file_name);
+vk::ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &file_name);

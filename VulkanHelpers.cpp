@@ -5,7 +5,7 @@
 #include <iterator>
 #include <tuple>
 
-ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &file_name) {
+vk::ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &file_name) {
     std::ifstream ifs(file_name, std::ios::ate | std::ios::binary);
 
     if (!ifs.is_open()) {
@@ -20,10 +20,7 @@ ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &f
 
     auto create_info = vk::ShaderModuleCreateInfo({}, file_size, reinterpret_cast<const u32*>(shader_code.data()));
     vk::ShaderModule shader_module = device.createShaderModule(create_info);
-
-    spv_reflect::ShaderModule reflection(shader_code.size(), reinterpret_cast<u8*>(shader_code.data()));
-
-   return {shader_module, std::move(reflection)};
+    return shader_module;
 }
 
 VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info,
@@ -41,6 +38,7 @@ VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create
 VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept : m_allocation(std::exchange(other.m_allocation, nullptr)), m_buffer(other.m_buffer), m_allocator(other.m_allocator) {}
 
 VulkanBuffer &VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
+    m_allocation = nullptr;
     std::swap(m_allocation, other.m_allocation);
     m_buffer = other.m_buffer;
     m_allocator = other.m_allocator;
@@ -49,7 +47,7 @@ VulkanBuffer &VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
 }
 
 VulkanBuffer::~VulkanBuffer() {
-    if (m_allocation != nullptr) {
+    if (m_allocation != NULL) {
         vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
     }
 }
@@ -58,12 +56,4 @@ vk::Buffer& VulkanBuffer::get() {
     return m_buffer;
 }
 
-template<typename T>
-void VulkanBuffer::load_data(std::vector<T> data_vec) { //IS IT CLEAN?
-    void* data;
-    vmaMapMemory(m_allocator, m_allocation, &data);
 
-    memcpy(data, data_vec.data(), data_vec.size() * sizeof(T));
-
-    vmaUnmapMemory(m_allocator, m_allocation);
-}

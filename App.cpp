@@ -1,10 +1,13 @@
 #define VMA_IMPLEMENTATION
 #include "App.h"
 #include "PhysicsEngine.h"
+#include "GPURadixSorter.h"
 
 #include <iostream>
 #include <limits>
 #include <algorithm>
+#include <numeric>
+#include <random>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
@@ -21,6 +24,7 @@ App::App() {
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
     createVmaAllocator();
     initComputePipeline();
+    createComputeCommandPool();
 }
 
 App::~App() {
@@ -58,7 +62,7 @@ void App::createInstance() {
                                  1,
                                  "Physically-based Simulation Project",
                                  1,
-                                 VK_MAKE_VERSION(1, 1, 0));
+                                 VK_MAKE_VERSION(1, 2, 0));
     vk::InstanceCreateInfo create_info({}, &app_info, 0, nullptr, static_cast<u32>(extensions.size()), extensions.data());
 
     if (enable_validation_layers) {
@@ -99,6 +103,35 @@ void App::destroyWindow() {
 }
 
 void App::mainLoop() {
+    auto radix_sorter = GPURadixSorter(*this);
+
+    std::vector<u32> data(256);
+    std::iota(data.begin(), data.end(), 0);
+    std::shuffle(data.begin(), data.end(), std::mt19937(std::random_device()()));
+
+    VulkanBuffer key_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer key_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer value_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer value_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
+
+    key_buffer.store_data(data.data(), data.size());
+    value_buffer.store_data(data.data(), data.size());
+
+    auto sort_cmd_buf = radix_sorter.sort(data.size(), key_buffer, key_ping_pong_buffer, value_buffer, value_ping_pong_buffer);
+
+    vk::CommandBufferAllocateInfo primary_cmd_buf_alloc_info(m_compute_command_pool, vk::CommandBufferLevel::ePrimary, 1);
+    auto primary_cmd_buf = m_device.allocateCommandBuffers(primary_cmd_buf_alloc_info).front();
+    primary_cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    primary_cmd_buf.executeCommands(sort_cmd_buf);
+    primary_cmd_buf.end();
+    vk::SubmitInfo submit_info({}, {}, primary_cmd_buf, {});
+    vk::Fence finish_fence = m_device.createFence({});
+    m_queues.compute.submit(submit_info, finish_fence);
+
+    auto _ = m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
+
+    key_buffer.load_data(data.data(), data.size());
+
     while(!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
     }
@@ -219,6 +252,7 @@ void App::createDevice() {
     queues.graphics = device.getQueue(indices.graphics_family.value(), 0);
     queues.present = device.getQueue(indices.present_family.value(), 0);
     queues.compute = device.getQueue(indices.compute_family.value(), 0);
+    queues.indices = indices;
 
     m_queue_family_indices = indices;
     m_physical_device = physical_device;
@@ -300,16 +334,28 @@ void App::createSwapchain() {
 }
 
 
-VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
+VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage) {
     vk::BufferCreateInfo buffer_create_info {
-        vk::BufferCreateFlags(),                    // Flags
+        {},                    // Flags
         buffer_size,                                 // Size
-        vk::BufferUsageFlagBits::eStorageBuffer,    // Usage
-        vk::SharingMode::eExclusive,                // Sharing mode
-        1,                                          // Number of queue family indices
-        &family_index                  // List of queue family indices
+        usage,    // Usage
+        vk::SharingMode::eExclusive                // Sharing mode
     };
     return {m_allocator, buffer_create_info};
+}
+
+VulkanBuffer App::createCPUAccessibleBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage) {
+    VmaAllocationCreateInfo alloc_info = {};
+    alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+    vk::BufferCreateInfo create_info(
+            {},
+            buffer_size,
+            usage,
+            vk::SharingMode::eExclusive
+    );
+
+    return {m_allocator, create_info, alloc_info};
 }
 
 void App::initComputePipeline() {
@@ -326,7 +372,7 @@ void App::createVmaAllocator() {
     vulkanFunctions.vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
-    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_1;
+    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_2;
     allocatorCreateInfo.physicalDevice = m_physical_device;
     allocatorCreateInfo.device = m_device;
     allocatorCreateInfo.instance = m_instance;
@@ -340,7 +386,8 @@ void App::destroyVmaAllocator() {
     vmaDestroyAllocator(m_allocator);
 }
 
-
-
-
+void App::createComputeCommandPool() {
+    vk::CommandPoolCreateInfo create_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, m_queues.indices.compute_family.value());
+    m_compute_command_pool = m_device.createCommandPool(create_info);
+}
 

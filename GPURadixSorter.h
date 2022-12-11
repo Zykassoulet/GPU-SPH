@@ -1,8 +1,6 @@
 #pragma once
 
-#define FFX_CPP
 #include <cstdint>
-#include <FFX_ParallelSort.h>
 #include "VulkanHelpers.h"
 #include "App.h"
 #include <tuple>
@@ -35,7 +33,7 @@ struct GPURadixSorterDescriptorSets {
 class GPURadixSorter {
 public:
     GPURadixSorter(App& app);
-    std::tuple<VulkanBuffer&, VulkanBuffer&> sort(vk::CommandBuffer cmd_buf, u32 num_keys, VulkanBuffer &key_buf, VulkanBuffer &key_ping_pong_buf, VulkanBuffer &value_buf, VulkanBuffer& value_ping_pong_buf);
+    vk::CommandBuffer sort(u32 num_keys, VulkanBuffer &key_buf, VulkanBuffer &key_ping_pong_buf, VulkanBuffer &value_buf, VulkanBuffer& value_ping_pong_buf);
 
     ~GPURadixSorter();
     GPURadixSorter(const GPURadixSorter&) = delete;
@@ -45,14 +43,33 @@ private:
     void allocateScratchBuffers(u32 scratch_buffer_size, u32 reduced_scratch_buffer_size);
     vk::PipelineLayout createSortPipelineLayout();
     void createDescriptorSets();
-    vk::Pipeline createRadixPipeline(std::string shader_file, vk::PipelineLayout& layout);
+    vk::Pipeline createRadixPipeline(std::string shader_file, std::string entry_point, vk::PipelineLayout& layout);
     void createPipelines();
     void createDescriptorPool();
+    vk::CommandBuffer createCommandBuffer();
+    void bindConstantBuffer(vk::DescriptorBufferInfo& const_buf, vk::DescriptorSet& descriptor_set, u32 binding, u32 count);
+    void bindInputOutputBuffers(vk::Buffer& key_buf, vk::Buffer& key_ping_pong_buf, vk::Buffer& payload_buf, vk::Buffer& payload_ping_pong_buf);
+    void bindStaticBufferDescriptors();
+    void bindBuffers(vk::Buffer* buffers, vk::DescriptorSet& descriptor_set, u32 binding, u32 count);
+    vk::BufferMemoryBarrier bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size);
 
+    template<typename T>
+    std::tuple<VulkanBuffer, vk::DescriptorBufferInfo> allocConstBuffer(T& data) {
+        VulkanBuffer buffer = m_app->createCPUAccessibleBuffer(sizeof(T), m_app->m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eUniformBuffer);
+
+        buffer.store_data(&data, 1);
+
+        vk::DescriptorBufferInfo buffer_info(buffer.get(), 0, (u32) sizeof(T));
+
+        return std::make_tuple(std::move(buffer), buffer_info);
+    }
 
     App* m_app;
     VulkanBuffer m_scratch_buffer;
+    u32 m_scratch_buffer_size;
     VulkanBuffer m_reduced_scratch_buffer;
+    u32 m_reduced_scratch_buffer_size;
+    VulkanBuffer m_constant_buffer;
     vk::PipelineLayout m_pipeline_layout;
     GPURadixSorterPipelines m_pipelines;
     vk::DescriptorPool m_descriptor_pool;

@@ -22,6 +22,8 @@
 // ParallelSort Shaders/Includes
 //--------------------------------------------------------------------------------------
 #define FFX_HLSL
+#define VK_Const 1
+#define kRS_ValueCopy 1
 #include "../../vendor/fidelityfx-parallelsort/ffx-parallelsort/FFX_ParallelSort.h"
 
 [[vk::binding(0, 0)]] ConstantBuffer<FFX_ParallelSortCB>	CBuffer		: register(b0);					// Constant buffer

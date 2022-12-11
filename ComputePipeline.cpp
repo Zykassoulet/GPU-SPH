@@ -18,7 +18,7 @@ void ComputePipeline::init(App* app_ptr, PhysicsEngine* phy_eng_ptr) {
 	VmaAllocationCreateInfo vmaallocInfo = {};
 	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
-	m_pos_buf = st
+//	m_pos_buf = st
 
 
 

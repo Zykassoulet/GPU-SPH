@@ -30,6 +30,7 @@ struct Queues {
     vk::Queue graphics;
     vk::Queue present;
     vk::Queue compute;
+    QueueFamilyIndices indices;
 };
 
 struct SwapchainSupportDetails {
@@ -58,7 +59,9 @@ private:
     };;
 
     inline static const std::vector<const char*> device_extensions = {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+     //       VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME,
+     //       VK_GOOGLE_USER_TYPE_EXTENSION_NAME
     };
 
     #ifdef NDEBUG
@@ -89,9 +92,12 @@ private:
     void createSwapchain();
 
 
-    VulkanBuffer createBuffer(const u32 buffer_size, const u32 family_index);
+    VulkanBuffer createBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage);
+    VulkanBuffer createCPUAccessibleBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage);
 
     void initComputePipeline();
+
+    void createComputeCommandPool();
 
     // GLFW stuff
     void initWindow();
@@ -110,9 +116,11 @@ private:
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
     PhysicsEngine m_physics_engine;
+    vk::CommandPool m_compute_command_pool;
 
     void destroyVmaAllocator();
 
     friend class GPURadixSorter;
     friend class ComputePipeline;
+
 };
