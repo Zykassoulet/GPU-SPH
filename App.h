@@ -48,6 +48,7 @@ public:
     App(const App&) = delete;
     App& operator=(const App&) = delete;
 
+    void setPhysicsEngine(std::shared_ptr<PhysicsEngine> physics_engine_ptr);
     void mainLoop();
 
     ~App();
@@ -95,7 +96,7 @@ private:
     VulkanBuffer createBuffer(const u32 buffer_size, vk::BufferUsageFlags usage);
     VulkanBuffer createCPUAccessibleBuffer(const u32 buffer_size, vk::BufferUsageFlags usage);
 
-    void initComputePipeline();
+    void initPhysicsEngine();
 
     void createComputeCommandPool();
 
@@ -118,9 +119,11 @@ private:
     PhysicsEngine m_physics_engine;
     vk::CommandPool m_compute_command_pool;
 
+    std::shared_ptr<PhysicsEngine> m_physics_engine_ptr;
+
     void destroyVmaAllocator();
 
     friend class GPURadixSorter;
-    friend class ComputePipeline;
     friend class ZIndexer;
+    friend class PhysicsEngine;
 };

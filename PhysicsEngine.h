@@ -1,22 +1,45 @@
 #pragma once
 
-#include "utils.h"
-#include "ComputePipeline.h"
-#include "glm/glm.hpp"
+#include "PhysicsEngineStructs.h"
+#include "GPURadixSorter.h"
+#include <array>
+
+
+
+class App;
 
 class PhysicsEngine {
 
 public:
-	PhysicsEngine();
+	PhysicsEngine(std::shared_ptr<App> app_ptr);
+	~PhysicsEngine();
 
-	void initComputePipeline(App* app);
+	void initSimulationParameters();
+	void initBuffers();
+	void initDescriptors();
+	void initPipelines();
+
+	void initInputPosBuffer();
+	void initPosBuffer();
+	void initZIndexBuffer();
+	void initVelBuffer();
+	void initDensBuffer();
+	void initBlocksDataBuffer();
+
 
 
 private:
-	//parameters
-	u32 m_number_particles;
-	std::vector<glm::vec3> m_particles;
-	ComputePipeline m_compute_pipeline;
+	
 
-	friend class ComputePipeline;
+	SimulationParameters sim_params;
+	PhysicsEngineBuffers buffers;
+	PhysicsEngineDescriptorSetLayouts layouts;
+	PhysicsEnginePipelines pipelines;
+	vk::DescriptorPool descriptor_pool;
+
+	std::shared_ptr<GPURadixSorter> gpu_radix_sorter_ptr;
+	std::weak_ptr<App> app_wptr;
+
+	
+
 };
