@@ -26,8 +26,30 @@ ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &f
    return {shader_module, std::move(reflection)};
 }
 
-VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info,
-                           VmaAllocationCreateInfo alloc_info) {
+
+
+VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info, VmaAllocationCreateInfo alloc_info = {}) {
+    init(allocator, create_info, alloc_info);
+}
+
+VulkanBuffer::VulkanBuffer(VmaAllocator& allocator, size_t alloc_size,
+    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer,
+    VmaAllocationCreateFlags memoryFlag = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT) {
+
+    vk::BufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = vk::StructureType::eBufferCreateInfo;
+    bufferInfo.size = alloc_size;
+    bufferInfo.usage = usage;
+
+    VmaAllocationCreateInfo vmaallocInfo = {};
+    vmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    vmaallocInfo.flags = memoryFlag;
+    VulkanBuffer(allocator, bufferInfo, vmaallocInfo);
+
+    init(allocator, bufferInfo, vmaallocInfo);
+}
+
+void VulkanBuffer::init(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {}) {
 
     if (alloc_info.usage == VMA_MEMORY_USAGE_UNKNOWN) {
         alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
@@ -36,6 +58,7 @@ VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create
     m_allocator = allocator;
     auto result = vmaCreateBuffer(m_allocator, &static_cast<VkBufferCreateInfo&>(create_info), &alloc_info, &reinterpret_cast<VkBuffer&>(m_buffer), &m_allocation, nullptr);
     assert(result == VK_SUCCESS);
+
 }
 
 VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept : m_allocation(std::exchange(other.m_allocation, nullptr)), m_buffer(other.m_buffer), m_allocator(other.m_allocator) {}
@@ -66,4 +89,15 @@ void VulkanBuffer::load_data(std::vector<T> data_vec) { //IS IT CLEAN?
     memcpy(data, data_vec.data(), data_vec.size() * sizeof(T));
 
     vmaUnmapMemory(m_allocator, m_allocation);
+}
+
+vk::DescriptorSetLayoutBinding createDescriptorSetLayoutBinding(u32 binding, u32 count = 1, 
+    vk::DescriptorType type = vk::DescriptorType::eStorageBuffer, 
+    vk::ShaderStageFlagBits shader_stage = vk::ShaderStageFlagBits::eCompute) {
+        vk::DescriptorSetLayoutBinding layout_binding = {};
+        layout_binding.binding = binding;
+        layout_binding.descriptorCount = count;
+        layout_binding.descriptorType = type;
+        layout_binding.stageFlags = shader_stage;
+        return layout_binding;
 }

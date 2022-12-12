@@ -20,7 +20,6 @@ App::App() {
     createDevice();
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
     createVmaAllocator();
-    initComputePipeline();
 }
 
 App::~App() {
@@ -312,12 +311,8 @@ VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index) {
     return {m_allocator, buffer_create_info};
 }
 
-void App::initComputePipeline() {
-
-    m_physics_engine.initComputePipeline(this);
-
-
-
+void App::setPhysicsEngine(std::shared_ptr<PhysicsEngine> physics_engine_ptr) {
+    m_physics_engine_ptr = physics_engine_ptr;
 }
 
 void App::createVmaAllocator() {

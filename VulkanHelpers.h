@@ -11,6 +11,9 @@ class VulkanBuffer {
 public:
     VulkanBuffer() = default;
     VulkanBuffer(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {});
+    VulkanBuffer(VmaAllocator& allocator, size_t alloc_size,
+        vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer,
+        VmaAllocationCreateFlags memory_flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
 
     VulkanBuffer(const VulkanBuffer& other) = delete; // Disallow copying
     VulkanBuffer& operator=(const VulkanBuffer& other) = delete; // Disallow copying
@@ -19,6 +22,8 @@ public:
     VulkanBuffer& operator=(VulkanBuffer&& other) noexcept;
 
     ~VulkanBuffer();
+
+    void init(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {});
 
     vk::Buffer& get();
 
@@ -38,3 +43,6 @@ struct ShaderModule {
 };
 
 ShaderModule createShaderModuleFromFile(vk::Device& device, const std::string &file_name);
+vk::DescriptorSetLayoutBinding createDescriptorSetLayoutBinding(u32 binding, u32 count = 1,
+    vk::DescriptorType type = vk::DescriptorType::eStorageBuffer,
+    vk::ShaderStageFlagBits shader_stage = vk::ShaderStageFlagBits::eCompute);

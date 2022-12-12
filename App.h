@@ -47,6 +47,7 @@ public:
     App(const App&) = delete;
     App& operator=(const App&) = delete;
 
+    void setPhysicsEngine(std::shared_ptr<PhysicsEngine> physics_engine_ptr);
     void mainLoop();
 
     ~App();
@@ -91,7 +92,7 @@ private:
 
     VulkanBuffer createBuffer(const u32 buffer_size, const u32 family_index);
 
-    void initComputePipeline();
+    void initPhysicsEngine();
 
     // GLFW stuff
     void initWindow();
@@ -109,10 +110,11 @@ private:
     vk::SurfaceKHR m_surface;
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
-    PhysicsEngine m_physics_engine;
+
+    std::shared_ptr<PhysicsEngine> m_physics_engine_ptr;
 
     void destroyVmaAllocator();
 
     friend class GPURadixSorter;
-    friend class ComputePipeline;
+    friend class PhysicsEngine;
 };
