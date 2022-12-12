@@ -22,7 +22,7 @@ struct ZIndexerDescriptorSets {
 
 class ZIndexer : public SimulatorComputeStage {
 public:
-    ZIndexer(App* app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size);
+    ZIndexer(std::shared_ptr<App> app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size);
 
     vk::CommandBuffer generateZIndices(VulkanBuffer particles, u32 num_particles, VulkanBuffer z_index_buffer, VulkanBuffer particle_index_buffer);
 

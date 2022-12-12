@@ -1,13 +1,10 @@
 #define VMA_IMPLEMENTATION
 #include "App.h"
 #include "PhysicsEngine.h"
-#include "GPURadixSorter.h"
 
 #include <iostream>
 #include <limits>
 #include <algorithm>
-#include <numeric>
-#include <random>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
@@ -102,37 +99,9 @@ void App::destroyWindow() {
 }
 
 void App::mainLoop() {
-    auto radix_sorter = GPURadixSorter(this, 1024);
-
-    std::vector<u32> data(256);
-    std::iota(data.begin(), data.end(), 0);
-    std::shuffle(data.begin(), data.end(), std::mt19937(std::random_device()()));
-
-    VulkanBuffer key_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
-    VulkanBuffer key_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
-    VulkanBuffer value_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
-    VulkanBuffer value_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
-
-    key_buffer.store_data(data.data(), data.size());
-    value_buffer.store_data(data.data(), data.size());
-
-    auto sort_cmd_buf = radix_sorter.sort(data.size(), key_buffer, key_ping_pong_buffer, value_buffer, value_ping_pong_buffer);
-
-    vk::CommandBufferAllocateInfo primary_cmd_buf_alloc_info(m_compute_command_pool, vk::CommandBufferLevel::ePrimary, 1);
-    auto primary_cmd_buf = m_device.allocateCommandBuffers(primary_cmd_buf_alloc_info).front();
-    primary_cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-    primary_cmd_buf.executeCommands(sort_cmd_buf);
-    primary_cmd_buf.end();
-    vk::SubmitInfo submit_info({}, {}, primary_cmd_buf, {});
-    vk::Fence finish_fence = m_device.createFence({});
-    m_queues.compute.submit(submit_info, finish_fence);
-
-    auto _ = m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
-
-    key_buffer.load_data(data.data(), data.size());
-
     while(!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
+        m_physics_engine_ptr->step();
     }
 }
 

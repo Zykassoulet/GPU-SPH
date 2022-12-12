@@ -7,7 +7,7 @@
 
 class SimulatorComputeStage {
 public:
-    explicit SimulatorComputeStage(App* app) : m_app(app) {}
+    explicit SimulatorComputeStage(std::shared_ptr<App> app) : m_app(std::move(app)) {}
     ~SimulatorComputeStage();
     SimulatorComputeStage(const SimulatorComputeStage&) = delete;
     SimulatorComputeStage& operator=(const SimulatorComputeStage&) = delete;
@@ -20,7 +20,7 @@ protected:
 
     vk::CommandBuffer createCommandBuffer();
 
-    App* m_app;
+    std::shared_ptr<App> m_app;
     vk::DescriptorPool m_descriptor_pool;
 };
 

@@ -8,25 +8,21 @@
 class PhysicsEngine {
 
 public:
-	PhysicsEngine(std::shared_ptr<App> app_ptr);
-	~PhysicsEngine();
+	explicit PhysicsEngine(std::shared_ptr<App> app);
+    ~PhysicsEngine();
 
-	void initSimulationParameters();
-	void initBuffers();
-	void initDescriptors();
-	void initPipelines();
-
-	void initInputPosBuffer();
-	void initPosBuffer();
-	void initZIndexBuffer();
-	void initVelBuffer();
-	void initDensBuffer();
-	void initBlocksDataBuffer();
-
-
+    void step();
 
 private:
-	
+    void initSimulationParameters();
+    void initBuffers();
+
+    void initInputPosBuffer();
+    void initPosBuffer();
+    void initZIndexBuffer();
+    void initVelBuffer();
+    void initDensBuffer();
+    void initBlocksDataBuffer();
 
 	SimulationParameters sim_params;
 	PhysicsEngineBuffers buffers;
@@ -34,8 +30,8 @@ private:
 	PhysicsEnginePipelines pipelines;
 	vk::DescriptorPool descriptor_pool;
 
-	std::shared_ptr<GPURadixSorter> gpu_radix_sorter_ptr;
-	std::weak_ptr<App> app_wptr;
+	GPURadixSorter m_radix_sorter;
+	std::shared_ptr<App> m_app;
 
 	
 

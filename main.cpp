@@ -9,6 +9,7 @@ std::shared_ptr<App> createSPHApp() {
     std::shared_ptr<PhysicsEngine> physics_engine_ptr = std::make_shared<PhysicsEngine>(app_ptr);
     app_ptr->setPhysicsEngine(physics_engine_ptr);
 
+    return app_ptr;
 }
 
 int main() {

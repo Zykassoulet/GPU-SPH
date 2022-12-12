@@ -116,7 +116,7 @@ vk::CommandBuffer GPURadixSorter::sort(
     return cmd_buf;
 }
 
-GPURadixSorter::GPURadixSorter(App* app, u32 max_keys) : SimulatorComputeStage(app) {
+GPURadixSorter::GPURadixSorter(std::shared_ptr<App> app, u32 max_keys) : SimulatorComputeStage(std::move(app)) {
     FFX_ParallelSort_CalculateScratchResourceSize(max_keys, m_scratch_buffer_size, m_reduced_scratch_buffer_size);
 
     allocateScratchBuffers(m_scratch_buffer_size, m_reduced_scratch_buffer_size);

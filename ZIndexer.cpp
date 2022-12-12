@@ -1,7 +1,7 @@
 #include "ZIndexer.h"
 
 
-ZIndexer::ZIndexer(App* app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
+ZIndexer::ZIndexer(std::shared_ptr<App> app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
     SimulatorComputeStage(app),
     m_grid_x(grid_x),
     m_grid_y(grid_y),
