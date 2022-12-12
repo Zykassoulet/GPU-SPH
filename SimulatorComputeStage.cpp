@@ -1,11 +1,11 @@
 #include "SimulatorComputeStage.h"
 
-vk::CommandBuffer SimulatorComputeStage::createCommandBuffer() {
+vk::UniqueCommandBuffer SimulatorComputeStage::createCommandBuffer() {
     vk::CommandBufferAllocateInfo alloc_info(m_vk_context->m_compute_command_pool, vk::CommandBufferLevel::eSecondary, 1);
-    auto cmd_buf = m_vk_context->m_device.allocateCommandBuffers(alloc_info).front();
+    auto cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(alloc_info).front());
     auto inheritance_info = vk::CommandBufferInheritanceInfo();
-    cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, &inheritance_info));
-    return cmd_buf;
+    cmd_buf->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, &inheritance_info));
+    return std::move(cmd_buf);
 }
 
 void SimulatorComputeStage::createDescriptorPool(u32 max_sets, std::map<vk::DescriptorType, u32> counts) {
@@ -22,7 +22,8 @@ void SimulatorComputeStage::createDescriptorPool(u32 max_sets, std::map<vk::Desc
             max_sets,
             pool_sizes
     ));
-    deferDelete([&pool = m_descriptor_pool](auto vk_context) {
+    deferDelete([pool = m_descriptor_pool](auto vk_context) {
+        vk_context->m_device.resetDescriptorPool(pool);
         vk_context->m_device.destroyDescriptorPool(pool);
     });
 }

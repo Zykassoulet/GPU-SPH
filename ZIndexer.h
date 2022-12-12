@@ -24,7 +24,7 @@ class ZIndexer : public SimulatorComputeStage {
 public:
     ZIndexer(std::shared_ptr<VulkanContext> vulkan_context, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size);
 
-    vk::CommandBuffer generateZIndices(VulkanBuffer particles, u32 num_particles, VulkanBuffer z_index_buffer, VulkanBuffer particle_index_buffer);
+    vk::UniqueCommandBuffer generateZIndices(VulkanBuffer particles, u32 num_particles, VulkanBuffer z_index_buffer, VulkanBuffer particle_index_buffer);
 
 private:
     static inline u32 makeInterleavable(u32 value, u32 spacing, u32 offset) {

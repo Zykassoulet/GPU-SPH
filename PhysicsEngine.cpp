@@ -77,11 +77,11 @@ void PhysicsEngine::step() {
     auto sort_cmd_buf = m_radix_sorter.sort(data.size(), key_buffer, key_ping_pong_buffer, value_buffer, value_ping_pong_buffer);
 
     vk::CommandBufferAllocateInfo primary_cmd_buf_alloc_info(m_vk_context->m_compute_command_pool, vk::CommandBufferLevel::ePrimary, 1);
-    auto primary_cmd_buf = m_vk_context->m_device.allocateCommandBuffers(primary_cmd_buf_alloc_info).front();
-    primary_cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-    primary_cmd_buf.executeCommands(sort_cmd_buf);
-    primary_cmd_buf.end();
-    vk::SubmitInfo submit_info({}, {}, primary_cmd_buf, {});
+    auto primary_cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(primary_cmd_buf_alloc_info).front());
+    primary_cmd_buf->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    primary_cmd_buf->executeCommands(sort_cmd_buf.get());
+    primary_cmd_buf->end();
+    vk::SubmitInfo submit_info({}, {}, primary_cmd_buf.get(), {});
     vk::Fence finish_fence = m_vk_context->m_device.createFence({});
     m_vk_context->m_queues.compute.submit(submit_info, finish_fence);
 

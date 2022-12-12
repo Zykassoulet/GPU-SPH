@@ -4,8 +4,10 @@
 
 #include "VulkanCleaner.h"
 
+#include <ranges>
+
 VulkanCleaner::~VulkanCleaner() {
-    for (const auto& deleter : m_deletion_queue) {
+    for (auto& deleter : std::ranges::reverse_view(m_deletion_queue)) {
         deleter(m_vk_context);
     }
 }
