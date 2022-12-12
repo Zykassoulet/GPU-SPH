@@ -159,6 +159,10 @@ vk::Pipeline GPURadixSorter::createRadixPipeline(std::string shader_file, std::s
     auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, entry_point.data(), {});
     auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, layout, {}, {});
     vk::Pipeline pipeline = m_vk_context->m_device.createComputePipeline({}, create_info).value;
+    deferDelete([pipeline](auto vk_context){
+        vk_context->m_device.destroyPipeline(pipeline);
+    });
+
     return pipeline;
 }
 
@@ -206,11 +210,29 @@ void GPURadixSorter::createDescriptorSets() {
     };
 
     m_descriptor_sets.constant_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, constant_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.constant_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
     m_descriptor_sets.indirect_constant_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, indirect_constant_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.indirect_constant_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
     m_descriptor_sets.input_output_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, input_output_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.input_output_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
     m_descriptor_sets.scan_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, scan_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.scan_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
     m_descriptor_sets.scratch_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, scratch_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.scratch_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
     m_descriptor_sets.indirect_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, indirect_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.indirect_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
 
     auto constant_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.constant_layout);
     auto indirect_constant_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.indirect_constant_layout);
@@ -222,20 +244,44 @@ void GPURadixSorter::createDescriptorSets() {
     vk::Result result;
     result = m_vk_context->m_device.allocateDescriptorSets(&constant_set_alloc_info, &m_descriptor_sets.constant_set);
     assert(result == vk::Result::eSuccess);
+    deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.constant_set](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&indirect_constant_set_alloc_info, &m_descriptor_sets.indirect_constant_set);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.indirect_constant_set](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&input_output_set_alloc_info, &m_descriptor_sets.input_output_sets[0]);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.input_output_sets[0]](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&input_output_set_alloc_info, &m_descriptor_sets.input_output_sets[1]);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.input_output_sets[1]](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&scan_set_alloc_info, &m_descriptor_sets.scan_sets[0]);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.scan_sets[0]](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&scan_set_alloc_info, &m_descriptor_sets.scan_sets[1]);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.scan_sets[1]](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&scratch_set_alloc_info, &m_descriptor_sets.scratch_set);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.scratch_set](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&indirect_set_alloc_info, &m_descriptor_sets.indirect_set);
     assert(result == vk::Result::eSuccess);
+        deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.indirect_set](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
 }
 
 void GPURadixSorter::createDescriptorPool() {
