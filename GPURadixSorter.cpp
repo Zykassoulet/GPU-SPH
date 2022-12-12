@@ -1,6 +1,5 @@
 #include "GPURadixSorter.h"
-#define FFX_CPP
-#include <FFX_ParallelSort.h>
+#include "FFXParallelSort.h"
 
 
 vk::UniqueCommandBuffer GPURadixSorter::sort(

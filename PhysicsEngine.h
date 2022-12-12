@@ -28,7 +28,6 @@ private:
 	PhysicsEngineBuffers buffers;
 	PhysicsEngineDescriptorSetLayouts layouts;
 	PhysicsEnginePipelines pipelines;
-	vk::DescriptorPool descriptor_pool;
 
 	GPURadixSorter m_radix_sorter;
 	std::shared_ptr<VulkanContext> m_vk_context;
