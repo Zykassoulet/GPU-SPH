@@ -1,0 +1,192 @@
+#include "ZIndexer.h"
+
+
+ZIndexer::ZIndexer(App *app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
+    m_app(app),
+    m_grid_x(grid_x),
+    m_grid_y(grid_y),
+    m_grid_z(grid_z),
+    m_grid_unit_size(grid_unit_size) {
+    createDescriptorPool();
+    createDescriptorSets();
+    createPipelineLayout();
+    createPipeline();
+    createLookupBuffers();
+    writeInterleaveBuffersDescriptorSet();
+}
+
+std::vector<u32> ZIndexer::generateInterleavableX() {
+    std::vector<u32> out;
+    out.reserve(m_grid_x);
+
+    for (u32 i = 0; i < m_grid_x; i++) {
+        out.push_back(makeInterleavable(i, 3, 0));
+    }
+
+    return std::move(out);
+}
+
+std::vector<u32> ZIndexer::generateInterleavableY() {
+    std::vector<u32> out;
+    out.reserve(m_grid_y);
+
+    for (u32 i = 0; i < m_grid_y; i++) {
+        out.push_back(makeInterleavable(i, 3, 1));
+    }
+
+    return std::move(out);
+}
+
+std::vector<u32> ZIndexer::generateInterleavableZ() {
+    std::vector<u32> out;
+    out.reserve(m_grid_z);
+
+    for (u32 i = 0; i < m_grid_z; i++) {
+        out.push_back(makeInterleavable(i, 3, 2));
+    }
+
+    return std::move(out);
+}
+
+void ZIndexer::createLookupBuffers() {
+    auto x_data = generateInterleavableX();
+    auto y_data = generateInterleavableY();
+    auto z_data = generateInterleavableZ();
+
+    ZIndexLookupBuffers buffers = ZIndexLookupBuffers {
+        m_app->createCPUAccessibleBuffer(x_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
+        m_app->createCPUAccessibleBuffer(y_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
+        m_app->createCPUAccessibleBuffer(z_data.size(), vk::BufferUsageFlagBits::eStorageBuffer)
+    };
+
+    buffers.x_lookup.load_data(x_data.data(), x_data.size());
+    buffers.y_lookup.load_data(y_data.data(), y_data.size());
+    buffers.z_lookup.load_data(z_data.data(), z_data.size());
+
+    m_lookup_buffers = std::move(buffers);
+}
+
+vk::CommandBuffer ZIndexer::generateZIndices(VulkanBuffer particles, u32 num_particles, VulkanBuffer z_index_buffer,
+                                             VulkanBuffer particle_index_buffer) {
+    writeParticleBuffersDescriptorSet(particles, num_particles, particle_index_buffer, z_index_buffer);
+
+    auto cmd_buf = createCommandBuffer();
+
+    auto descriptor_sets = std::array {m_descriptor_sets.particle_buffers, m_descriptor_sets.interleave_buffers};
+    cmd_buf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, m_pipeline_layout, 0, descriptor_sets, {});
+
+    std::array<vk::BufferMemoryBarrier, 3> barriers;
+
+    barriers[0] = bufferTransition(particles.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, num_particles * sizeof(Particle));
+    barriers[1] = bufferTransition(z_index_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, num_particles * sizeof(u32));
+    barriers[2] = bufferTransition(particle_index_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, num_particles * sizeof(u32));
+
+    cmd_buf.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline);
+
+    cmd_buf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
+
+    cmd_buf.dispatch((num_particles / 256) + 1, 1, 1);
+
+    cmd_buf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
+
+    cmd_buf.end();
+    return cmd_buf;
+}
+
+void ZIndexer::createPipeline() {
+    auto shader_module = createShaderModuleFromFile(m_app->m_device, "shaders/build/z_indexer.spv");
+    auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, "main", {});
+    auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, m_pipeline_layout, {}, {});
+    m_pipeline = m_app->m_device.createComputePipeline({}, create_info).value;
+}
+
+struct ShaderPushConstants {
+    u32 grid_size_x;
+    u32 grid_size_y;
+    u32 grid_size_z;
+    f32 grid_unit_size;
+};
+
+void ZIndexer::createPipelineLayout() {
+    vk::PushConstantRange constant_range(vk::ShaderStageFlagBits::eAll, 0, sizeof(ShaderPushConstants));
+
+    std::array<vk::DescriptorSetLayout, 2> descriptor_set_layouts = {m_descriptor_sets.particle_buffers_layout, m_descriptor_sets.interleave_buffers_layout};
+
+    vk::PipelineLayoutCreateInfo layout_create_info({}, descriptor_set_layouts, constant_range);
+    m_pipeline_layout = m_app->m_device.createPipelineLayout(layout_create_info);
+}
+
+void ZIndexer::createDescriptorSets() {
+    auto particle_buffer_bindings = std::array {
+        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {}),
+        vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {}),
+        vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {})
+    };
+
+    auto interleave_buffer_bindings = std::array {
+        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {}),
+        vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {}),
+        vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {})
+    };
+
+    m_descriptor_sets.particle_buffers_layout = m_app->m_device.createDescriptorSetLayout({{}, particle_buffer_bindings});
+    m_descriptor_sets.interleave_buffers_layout = m_app->m_device.createDescriptorSetLayout({{}, interleave_buffer_bindings});
+
+    auto particle_buffer_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.particle_buffers_layout);
+    auto interleave_buffer_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.interleave_buffers_layout);
+
+    vk::Result result;
+    result = m_app->m_device.allocateDescriptorSets(&particle_buffer_set_alloc_info, &m_descriptor_sets.particle_buffers);
+    assert(result == vk::Result::eSuccess);
+    result = m_app->m_device.allocateDescriptorSets(&interleave_buffer_set_alloc_info, &m_descriptor_sets.interleave_buffers);
+    assert(result == vk::Result::eSuccess);
+}
+
+void ZIndexer::createDescriptorPool() {
+    auto pool_sizes = std::array {
+            vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 50),
+    };
+
+    m_descriptor_pool = m_app->m_device.createDescriptorPool(vk::DescriptorPoolCreateInfo(
+            {},
+            15,
+            pool_sizes
+    ));
+}
+
+void ZIndexer::writeInterleaveBuffersDescriptorSet() {
+    auto buffers = std::array {
+        vk::DescriptorBufferInfo(m_lookup_buffers.x_lookup.get(), 0, (u32) m_grid_x * sizeof(u32)),
+        vk::DescriptorBufferInfo(m_lookup_buffers.y_lookup.get(), 0, (u32) m_grid_y * sizeof(u32)),
+        vk::DescriptorBufferInfo(m_lookup_buffers.z_lookup.get(), 0, (u32) m_grid_z * sizeof(u32)),
+    };
+    vk::WriteDescriptorSet descriptor_write(m_descriptor_sets.interleave_buffers, 0, 0, vk::DescriptorType::eStorageBuffer, {}, buffers, {});
+
+    m_app->m_device.updateDescriptorSets(descriptor_write, {});
+}
+
+void ZIndexer::writeParticleBuffersDescriptorSet(VulkanBuffer &particle_buffer, u32 num_particles,
+                                                 VulkanBuffer &particle_index_buffer, VulkanBuffer &z_index_buffer) {
+    auto buffers = std::array {
+            vk::DescriptorBufferInfo(particle_buffer.get(), 0, (u32) num_particles * sizeof(Particle)),
+            vk::DescriptorBufferInfo(z_index_buffer.get(), 0, (u32) num_particles * sizeof(u32)),
+            vk::DescriptorBufferInfo(particle_index_buffer.get(), 0, (u32) num_particles * sizeof(u32)),
+    };
+    vk::WriteDescriptorSet descriptor_write(m_descriptor_sets.particle_buffers, 0, 0, vk::DescriptorType::eStorageBuffer, {}, buffers, {});
+
+    m_app->m_device.updateDescriptorSets(descriptor_write, {});
+}
+
+vk::CommandBuffer ZIndexer::createCommandBuffer() {
+    vk::CommandBufferAllocateInfo alloc_info(m_app->m_compute_command_pool, vk::CommandBufferLevel::eSecondary, 1);
+    auto cmd_buf = m_app->m_device.allocateCommandBuffers(alloc_info).front();
+    auto inheritance_info = vk::CommandBufferInheritanceInfo();
+    cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, &inheritance_info));
+    return cmd_buf;
+}
+
+vk::BufferMemoryBarrier ZIndexer::bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {
+    return {
+            before, after, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, buffer, 0, size
+    };
+}

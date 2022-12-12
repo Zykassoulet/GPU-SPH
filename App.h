@@ -92,8 +92,8 @@ private:
     void createSwapchain();
 
 
-    VulkanBuffer createBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage);
-    VulkanBuffer createCPUAccessibleBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage);
+    VulkanBuffer createBuffer(const u32 buffer_size, vk::BufferUsageFlags usage);
+    VulkanBuffer createCPUAccessibleBuffer(const u32 buffer_size, vk::BufferUsageFlags usage);
 
     void initComputePipeline();
 
@@ -122,5 +122,5 @@ private:
 
     friend class GPURadixSorter;
     friend class ComputePipeline;
-
+    friend class ZIndexer;
 };

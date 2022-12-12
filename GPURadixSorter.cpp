@@ -157,8 +157,8 @@ void GPURadixSorter::createPipelines() {
 
 vk::Pipeline GPURadixSorter::createRadixPipeline(std::string shader_file, std::string entry_point, vk::PipelineLayout& layout) {
     auto shader_module = createShaderModuleFromFile(m_app->m_device, shader_file);
-    auto shader_state_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, entry_point.data(), {});
-    auto create_info = vk::ComputePipelineCreateInfo({}, shader_state_create_info, layout, {}, {});
+    auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, entry_point.data(), {});
+    auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, layout, {}, {});
     vk::Pipeline pipeline = m_app->m_device.createComputePipeline({}, create_info).value;
     return pipeline;
 }

@@ -109,10 +109,10 @@ void App::mainLoop() {
     std::iota(data.begin(), data.end(), 0);
     std::shuffle(data.begin(), data.end(), std::mt19937(std::random_device()()));
 
-    VulkanBuffer key_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
-    VulkanBuffer key_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
-    VulkanBuffer value_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
-    VulkanBuffer value_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), m_queue_family_indices.compute_family.value(), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer key_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer key_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer value_buffer = createCPUAccessibleBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
+    VulkanBuffer value_ping_pong_buffer = createBuffer(data.size() * sizeof(u32), vk::BufferUsageFlagBits::eStorageBuffer);
 
     key_buffer.store_data(data.data(), data.size());
     value_buffer.store_data(data.data(), data.size());
@@ -334,7 +334,7 @@ void App::createSwapchain() {
 }
 
 
-VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage) {
+VulkanBuffer App::createBuffer(const u32 buffer_size, vk::BufferUsageFlags usage) {
     vk::BufferCreateInfo buffer_create_info {
         {},                    // Flags
         buffer_size,                                 // Size
@@ -344,7 +344,7 @@ VulkanBuffer App::createBuffer(const u32 buffer_size, const u32 family_index, vk
     return {m_allocator, buffer_create_info};
 }
 
-VulkanBuffer App::createCPUAccessibleBuffer(const u32 buffer_size, const u32 family_index, vk::BufferUsageFlags usage) {
+VulkanBuffer App::createCPUAccessibleBuffer(const u32 buffer_size, vk::BufferUsageFlags usage) {
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
