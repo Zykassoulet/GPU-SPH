@@ -3,11 +3,11 @@
 #include <map>
 #include "VulkanInclude.h"
 #include "utils.h"
-#include "App.h"
+#include "VulkanContext.h"
 
 class SimulatorComputeStage {
 public:
-    explicit SimulatorComputeStage(std::shared_ptr<App> app) : m_app(std::move(app)) {}
+    explicit SimulatorComputeStage(std::shared_ptr<VulkanContext> app) : m_app(std::move(app)) {}
     ~SimulatorComputeStage();
     SimulatorComputeStage(const SimulatorComputeStage&) = delete;
     SimulatorComputeStage& operator=(const SimulatorComputeStage&) = delete;
@@ -20,7 +20,7 @@ protected:
 
     vk::CommandBuffer createCommandBuffer();
 
-    std::shared_ptr<App> m_app;
+    std::shared_ptr<VulkanContext> m_app;
     vk::DescriptorPool m_descriptor_pool;
 };
 

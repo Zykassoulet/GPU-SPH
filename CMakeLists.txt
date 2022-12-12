@@ -4,11 +4,11 @@ project(project)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(project main.cpp
-        App.cpp
+        VulkanContext.cpp
         PhysicsEngine.cpp
         GPURadixSorter.cpp
         VulkanHelpers.cpp
-        vendor/spirv-reflect/spirv_reflect.cpp ZIndexer.cpp SimulatorComputeStage.cpp)
+        vendor/spirv-reflect/spirv_reflect.cpp ZIndexer.cpp SimulatorComputeStage.cpp App.cpp App.h)
 
 find_package(Vulkan REQUIRED)
 add_subdirectory(vendor)

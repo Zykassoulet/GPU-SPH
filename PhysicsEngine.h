@@ -3,12 +3,12 @@
 #include "PhysicsEngineStructs.h"
 #include "GPURadixSorter.h"
 #include <array>
-#include "App.h"
+#include "VulkanContext.h"
 
 class PhysicsEngine {
 
 public:
-	explicit PhysicsEngine(std::shared_ptr<App> app);
+	explicit PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context);
     ~PhysicsEngine();
 
     void step();
@@ -31,7 +31,7 @@ private:
 	vk::DescriptorPool descriptor_pool;
 
 	GPURadixSorter m_radix_sorter;
-	std::shared_ptr<App> m_app;
+	std::shared_ptr<VulkanContext> m_vk_context;
 
 	
 

@@ -1,8 +1,8 @@
 #include "ZIndexer.h"
 
 
-ZIndexer::ZIndexer(std::shared_ptr<App> app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
-    SimulatorComputeStage(app),
+ZIndexer::ZIndexer(std::shared_ptr<VulkanContext> vulkan_context, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
+    SimulatorComputeStage(vulkan_context),
     m_grid_x(grid_x),
     m_grid_y(grid_y),
     m_grid_z(grid_z),

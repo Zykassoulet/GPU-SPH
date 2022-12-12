@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include "VulkanHelpers.h"
-#include "App.h"
+#include "VulkanContext.h"
 #include "SimulatorComputeStage.h"
 #include <tuple>
 
@@ -33,7 +33,7 @@ struct GPURadixSorterDescriptorSets {
 
 class GPURadixSorter : public SimulatorComputeStage {
 public:
-    GPURadixSorter(std::shared_ptr<App> app, u32 max_keys);
+    GPURadixSorter(std::shared_ptr<VulkanContext> vulkan_context, u32 max_keys);
     vk::CommandBuffer sort(u32 num_keys, VulkanBuffer &key_buf, VulkanBuffer &key_ping_pong_buf, VulkanBuffer &value_buf, VulkanBuffer& value_ping_pong_buf);
 
     void setMaxKeys(u32 max_keys);
