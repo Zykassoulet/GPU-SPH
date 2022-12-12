@@ -98,6 +98,9 @@ void ZIndexer::createPipelines() {
     auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, "main", {});
     auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, m_pipeline_layout, {}, {});
     m_pipeline = m_vk_context->m_device.createComputePipeline({}, create_info).value;
+    deferDelete([&pipeline = m_pipeline](auto vk_context){
+        vk_context->m_device.destroyPipeline(pipeline);
+    });
 }
 
 struct ShaderPushConstants {
@@ -114,6 +117,9 @@ void ZIndexer::createPipelineLayout() {
 
     vk::PipelineLayoutCreateInfo layout_create_info({}, descriptor_set_layouts, constant_range);
     m_pipeline_layout = m_vk_context->m_device.createPipelineLayout(layout_create_info);
+    deferDelete([&layout = m_pipeline_layout](auto vk_context){
+        vk_context->m_device.destroyPipelineLayout(layout);
+    });
 }
 
 void ZIndexer::createDescriptorSets() {
@@ -130,7 +136,13 @@ void ZIndexer::createDescriptorSets() {
     };
 
     m_descriptor_sets.particle_buffers_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, particle_buffer_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.particle_buffers_layout](auto vk_context) {
+       vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
     m_descriptor_sets.interleave_buffers_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, interleave_buffer_bindings});
+    deferDelete([&descriptor_set_layout = m_descriptor_sets.interleave_buffers_layout](auto vk_context) {
+        vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
+    });
 
     auto particle_buffer_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.particle_buffers_layout);
     auto interleave_buffer_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.interleave_buffers_layout);
@@ -138,8 +150,14 @@ void ZIndexer::createDescriptorSets() {
     vk::Result result;
     result = m_vk_context->m_device.allocateDescriptorSets(&particle_buffer_set_alloc_info, &m_descriptor_sets.particle_buffers);
     assert(result == vk::Result::eSuccess);
+    deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.particle_buffers](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
     result = m_vk_context->m_device.allocateDescriptorSets(&interleave_buffer_set_alloc_info, &m_descriptor_sets.interleave_buffers);
     assert(result == vk::Result::eSuccess);
+    deferDelete([&pool = m_descriptor_pool, &set = m_descriptor_sets.interleave_buffers](auto vk_context){
+        vk_context->m_device.freeDescriptorSets(pool, set);
+    });
 }
 
 void ZIndexer::createDescriptorPool() {

@@ -8,12 +8,6 @@ vk::CommandBuffer SimulatorComputeStage::createCommandBuffer() {
     return cmd_buf;
 }
 
-SimulatorComputeStage::~SimulatorComputeStage() {
-    for (const auto& deleter : m_deletion_queue) {
-        deleter(m_vk_context);
-    }
-}
-
 void SimulatorComputeStage::createDescriptorPool(u32 max_sets, std::map<vk::DescriptorType, u32> counts) {
     std::vector<vk::DescriptorPoolSize> pool_sizes;
     pool_sizes.resize(counts.size());
@@ -28,8 +22,7 @@ void SimulatorComputeStage::createDescriptorPool(u32 max_sets, std::map<vk::Desc
             max_sets,
             pool_sizes
     ));
-}
-
-void SimulatorComputeStage::deferDelete(std::function<void(std::shared_ptr<VulkanContext>)> deleter) {
-    m_deletion_queue.push_back(deleter);
+    deferDelete([&pool = m_descriptor_pool](auto vk_context) {
+        vk_context->m_device.destroyDescriptorPool(pool);
+    });
 }

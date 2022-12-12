@@ -8,7 +8,7 @@ add_executable(project main.cpp
         PhysicsEngine.cpp
         GPURadixSorter.cpp
         VulkanHelpers.cpp
-        vendor/spirv-reflect/spirv_reflect.cpp ZIndexer.cpp SimulatorComputeStage.cpp App.cpp App.h)
+        vendor/spirv-reflect/spirv_reflect.cpp ZIndexer.cpp SimulatorComputeStage.cpp App.cpp App.h VulkanCleaner.cpp VulkanCleaner.h)
 
 find_package(Vulkan REQUIRED)
 add_subdirectory(vendor)
