@@ -66,6 +66,13 @@ void ZIndexer::createLookupBuffers() {
     m_lookup_buffers = std::move(buffers);
 }
 
+struct ShaderPushConstants {
+    u32 grid_size_x;
+    u32 grid_size_y;
+    u32 grid_size_z;
+    f32 grid_unit_size;
+};
+
 vk::CommandBuffer ZIndexer::generateZIndices(VulkanBuffer particles, u32 num_particles, VulkanBuffer z_index_buffer,
                                              VulkanBuffer particle_index_buffer) {
     writeParticleBuffersDescriptorSet(particles, num_particles, particle_index_buffer, z_index_buffer);
@@ -74,6 +81,15 @@ vk::CommandBuffer ZIndexer::generateZIndices(VulkanBuffer particles, u32 num_par
 
     auto descriptor_sets = std::array {m_descriptor_sets.particle_buffers, m_descriptor_sets.interleave_buffers};
     cmd_buf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, m_pipeline_layout, 0, descriptor_sets, {});
+
+    auto push_constants = ShaderPushConstants {
+        m_grid_x,
+        m_grid_y,
+        m_grid_z,
+        m_grid_unit_size
+    };
+
+    cmd_buf.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eAll, 0, vk::ArrayProxy<const ShaderPushConstants>(push_constants));
 
     std::array<vk::BufferMemoryBarrier, 3> barriers;
 
@@ -102,13 +118,6 @@ void ZIndexer::createPipelines() {
         vk_context->m_device.destroyPipeline(pipeline);
     });
 }
-
-struct ShaderPushConstants {
-    u32 grid_size_x;
-    u32 grid_size_y;
-    u32 grid_size_z;
-    f32 grid_unit_size;
-};
 
 void ZIndexer::createPipelineLayout() {
     vk::PushConstantRange constant_range(vk::ShaderStageFlagBits::eAll, 0, sizeof(ShaderPushConstants));
