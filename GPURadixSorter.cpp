@@ -137,9 +137,9 @@ void GPURadixSorter::allocateScratchBuffers(u32 scratch_buffer_size,
     }
 
     create_info.size = scratch_buffer_size;
-    m_scratch_buffer = std::move(VulkanBuffer(m_app->m_allocator, create_info));
+    m_scratch_buffer = std::move(VulkanBuffer(m_vk_context->m_allocator, create_info));
     create_info.size = reduced_scratch_buffer_size;
-    m_reduced_scratch_buffer = std::move(VulkanBuffer(m_app->m_allocator, create_info));
+    m_reduced_scratch_buffer = std::move(VulkanBuffer(m_vk_context->m_allocator, create_info));
 }
 
 void GPURadixSorter::createPipelines() {
@@ -155,10 +155,10 @@ void GPURadixSorter::createPipelines() {
 }
 
 vk::Pipeline GPURadixSorter::createRadixPipeline(std::string shader_file, std::string entry_point, vk::PipelineLayout& layout) {
-    auto shader_module = createShaderModuleFromFile(m_app->m_device, shader_file);
+    auto shader_module = createShaderModuleFromFile(m_vk_context->m_device, shader_file);
     auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, entry_point.data(), {});
     auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, layout, {}, {});
-    vk::Pipeline pipeline = m_app->m_device.createComputePipeline({}, create_info).value;
+    vk::Pipeline pipeline = m_vk_context->m_device.createComputePipeline({}, create_info).value;
     return pipeline;
 }
 
@@ -168,7 +168,7 @@ vk::PipelineLayout GPURadixSorter::createSortPipelineLayout() {
     auto descriptor_set_layouts = m_descriptor_sets.get_layouts();
 
     vk::PipelineLayoutCreateInfo layout_create_info({}, descriptor_set_layouts, constant_range);
-    return m_app->m_device.createPipelineLayout(layout_create_info);
+    return m_vk_context->m_device.createPipelineLayout(layout_create_info);
 }
 
 void GPURadixSorter::createDescriptorSets() {
@@ -205,12 +205,12 @@ void GPURadixSorter::createDescriptorSets() {
         vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {}) // ReduceScanArgs
     };
 
-    m_descriptor_sets.constant_layout = m_app->m_device.createDescriptorSetLayout({{}, constant_bindings});
-    m_descriptor_sets.indirect_constant_layout = m_app->m_device.createDescriptorSetLayout({{}, indirect_constant_bindings});
-    m_descriptor_sets.input_output_layout = m_app->m_device.createDescriptorSetLayout({{}, input_output_bindings});
-    m_descriptor_sets.scan_layout = m_app->m_device.createDescriptorSetLayout({{}, scan_bindings});
-    m_descriptor_sets.scratch_layout = m_app->m_device.createDescriptorSetLayout({{}, scratch_bindings});
-    m_descriptor_sets.indirect_layout = m_app->m_device.createDescriptorSetLayout({{}, indirect_bindings});
+    m_descriptor_sets.constant_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, constant_bindings});
+    m_descriptor_sets.indirect_constant_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, indirect_constant_bindings});
+    m_descriptor_sets.input_output_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, input_output_bindings});
+    m_descriptor_sets.scan_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, scan_bindings});
+    m_descriptor_sets.scratch_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, scratch_bindings});
+    m_descriptor_sets.indirect_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, indirect_bindings});
 
     auto constant_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.constant_layout);
     auto indirect_constant_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.indirect_constant_layout);
@@ -220,21 +220,21 @@ void GPURadixSorter::createDescriptorSets() {
     auto indirect_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.indirect_layout);
 
     vk::Result result;
-    result = m_app->m_device.allocateDescriptorSets(&constant_set_alloc_info, &m_descriptor_sets.constant_set);
+    result = m_vk_context->m_device.allocateDescriptorSets(&constant_set_alloc_info, &m_descriptor_sets.constant_set);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&indirect_constant_set_alloc_info, &m_descriptor_sets.indirect_constant_set);
+    result = m_vk_context->m_device.allocateDescriptorSets(&indirect_constant_set_alloc_info, &m_descriptor_sets.indirect_constant_set);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&input_output_set_alloc_info, &m_descriptor_sets.input_output_sets[0]);
+    result = m_vk_context->m_device.allocateDescriptorSets(&input_output_set_alloc_info, &m_descriptor_sets.input_output_sets[0]);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&input_output_set_alloc_info, &m_descriptor_sets.input_output_sets[1]);
+    result = m_vk_context->m_device.allocateDescriptorSets(&input_output_set_alloc_info, &m_descriptor_sets.input_output_sets[1]);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&scan_set_alloc_info, &m_descriptor_sets.scan_sets[0]);
+    result = m_vk_context->m_device.allocateDescriptorSets(&scan_set_alloc_info, &m_descriptor_sets.scan_sets[0]);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&scan_set_alloc_info, &m_descriptor_sets.scan_sets[1]);
+    result = m_vk_context->m_device.allocateDescriptorSets(&scan_set_alloc_info, &m_descriptor_sets.scan_sets[1]);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&scratch_set_alloc_info, &m_descriptor_sets.scratch_set);
+    result = m_vk_context->m_device.allocateDescriptorSets(&scratch_set_alloc_info, &m_descriptor_sets.scratch_set);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&indirect_set_alloc_info, &m_descriptor_sets.indirect_set);
+    result = m_vk_context->m_device.allocateDescriptorSets(&indirect_set_alloc_info, &m_descriptor_sets.indirect_set);
     assert(result == vk::Result::eSuccess);
 }
 
@@ -247,7 +247,7 @@ void GPURadixSorter::createDescriptorPool() {
 
 void GPURadixSorter::bindConstantBuffer(vk::DescriptorBufferInfo &const_buf, vk::DescriptorSet& descriptor_set, u32 binding, u32 count) {
     vk::WriteDescriptorSet descriptor_write(descriptor_set, binding, 0, vk::DescriptorType::eUniformBuffer, {}, const_buf, {});
-    m_app->m_device.updateDescriptorSets(descriptor_write, {});
+    m_vk_context->m_device.updateDescriptorSets(descriptor_write, {});
 }
 
 void GPURadixSorter::bindBuffers(vk::Buffer *buffers, vk::DescriptorSet &descriptor_set, u32 binding, u32 count) {
@@ -258,7 +258,7 @@ void GPURadixSorter::bindBuffers(vk::Buffer *buffers, vk::DescriptorSet &descrip
     }
 
     vk::WriteDescriptorSet descriptor_write(descriptor_set, binding, 0, vk::DescriptorType::eStorageBuffer, {}, buffer_infos, {});
-    m_app->m_device.updateDescriptorSets(descriptor_write, {});
+    m_vk_context->m_device.updateDescriptorSets(descriptor_write, {});
 }
 
 void GPURadixSorter::bindStaticBufferDescriptors() {

@@ -54,9 +54,9 @@ void ZIndexer::createLookupBuffers() {
     auto z_data = generateInterleavableZ();
 
     ZIndexLookupBuffers buffers = ZIndexLookupBuffers {
-        m_app->createCPUAccessibleBuffer(x_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
-        m_app->createCPUAccessibleBuffer(y_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
-        m_app->createCPUAccessibleBuffer(z_data.size(), vk::BufferUsageFlagBits::eStorageBuffer)
+            m_vk_context->createCPUAccessibleBuffer(x_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
+            m_vk_context->createCPUAccessibleBuffer(y_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
+            m_vk_context->createCPUAccessibleBuffer(z_data.size(), vk::BufferUsageFlagBits::eStorageBuffer)
     };
 
     buffers.x_lookup.load_data(x_data.data(), x_data.size());
@@ -94,10 +94,10 @@ vk::CommandBuffer ZIndexer::generateZIndices(VulkanBuffer particles, u32 num_par
 }
 
 void ZIndexer::createPipelines() {
-    auto shader_module = createShaderModuleFromFile(m_app->m_device, "shaders/build/z_indexer.spv");
+    auto shader_module = createShaderModuleFromFile(m_vk_context->m_device, "shaders/build/z_indexer.spv");
     auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, "main", {});
     auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, m_pipeline_layout, {}, {});
-    m_pipeline = m_app->m_device.createComputePipeline({}, create_info).value;
+    m_pipeline = m_vk_context->m_device.createComputePipeline({}, create_info).value;
 }
 
 struct ShaderPushConstants {
@@ -113,7 +113,7 @@ void ZIndexer::createPipelineLayout() {
     std::array<vk::DescriptorSetLayout, 2> descriptor_set_layouts = {m_descriptor_sets.particle_buffers_layout, m_descriptor_sets.interleave_buffers_layout};
 
     vk::PipelineLayoutCreateInfo layout_create_info({}, descriptor_set_layouts, constant_range);
-    m_pipeline_layout = m_app->m_device.createPipelineLayout(layout_create_info);
+    m_pipeline_layout = m_vk_context->m_device.createPipelineLayout(layout_create_info);
 }
 
 void ZIndexer::createDescriptorSets() {
@@ -129,16 +129,16 @@ void ZIndexer::createDescriptorSets() {
         vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, {})
     };
 
-    m_descriptor_sets.particle_buffers_layout = m_app->m_device.createDescriptorSetLayout({{}, particle_buffer_bindings});
-    m_descriptor_sets.interleave_buffers_layout = m_app->m_device.createDescriptorSetLayout({{}, interleave_buffer_bindings});
+    m_descriptor_sets.particle_buffers_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, particle_buffer_bindings});
+    m_descriptor_sets.interleave_buffers_layout = m_vk_context->m_device.createDescriptorSetLayout({{}, interleave_buffer_bindings});
 
     auto particle_buffer_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.particle_buffers_layout);
     auto interleave_buffer_set_alloc_info = vk::DescriptorSetAllocateInfo(m_descriptor_pool, m_descriptor_sets.interleave_buffers_layout);
 
     vk::Result result;
-    result = m_app->m_device.allocateDescriptorSets(&particle_buffer_set_alloc_info, &m_descriptor_sets.particle_buffers);
+    result = m_vk_context->m_device.allocateDescriptorSets(&particle_buffer_set_alloc_info, &m_descriptor_sets.particle_buffers);
     assert(result == vk::Result::eSuccess);
-    result = m_app->m_device.allocateDescriptorSets(&interleave_buffer_set_alloc_info, &m_descriptor_sets.interleave_buffers);
+    result = m_vk_context->m_device.allocateDescriptorSets(&interleave_buffer_set_alloc_info, &m_descriptor_sets.interleave_buffers);
     assert(result == vk::Result::eSuccess);
 }
 
@@ -156,7 +156,7 @@ void ZIndexer::writeInterleaveBuffersDescriptorSet() {
     };
     vk::WriteDescriptorSet descriptor_write(m_descriptor_sets.interleave_buffers, 0, 0, vk::DescriptorType::eStorageBuffer, {}, buffers, {});
 
-    m_app->m_device.updateDescriptorSets(descriptor_write, {});
+    m_vk_context->m_device.updateDescriptorSets(descriptor_write, {});
 }
 
 void ZIndexer::writeParticleBuffersDescriptorSet(VulkanBuffer &particle_buffer, u32 num_particles,
@@ -168,5 +168,5 @@ void ZIndexer::writeParticleBuffersDescriptorSet(VulkanBuffer &particle_buffer, 
     };
     vk::WriteDescriptorSet descriptor_write(m_descriptor_sets.particle_buffers, 0, 0, vk::DescriptorType::eStorageBuffer, {}, buffers, {});
 
-    m_app->m_device.updateDescriptorSets(descriptor_write, {});
+    m_vk_context->m_device.updateDescriptorSets(descriptor_write, {});
 }
