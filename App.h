@@ -4,7 +4,6 @@
 #include <GLFW/glfw3.h>
 
 #include "utils.h"
-#include "PhysicsEngine.h"
 
 #include "VulkanHelpers.h"
 
@@ -39,6 +38,7 @@ struct SwapchainSupportDetails {
     std::vector<vk::PresentModeKHR> present_modes;
 };
 
+class PhysicsEngine;
 
 class App {
 public:
@@ -116,7 +116,6 @@ private:
     vk::SurfaceKHR m_surface;
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
-    PhysicsEngine m_physics_engine;
     vk::CommandPool m_compute_command_pool;
 
     std::shared_ptr<PhysicsEngine> m_physics_engine_ptr;
@@ -125,5 +124,6 @@ private:
 
     friend class GPURadixSorter;
     friend class ZIndexer;
+    friend class SimulatorComputeStage;
     friend class PhysicsEngine;
 };

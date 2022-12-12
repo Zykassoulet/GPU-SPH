@@ -1,8 +1,8 @@
 #include "ZIndexer.h"
 
 
-ZIndexer::ZIndexer(App *app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
-    m_app(app),
+ZIndexer::ZIndexer(App* app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size) :
+    SimulatorComputeStage(app),
     m_grid_x(grid_x),
     m_grid_y(grid_y),
     m_grid_z(grid_z),
@@ -10,7 +10,7 @@ ZIndexer::ZIndexer(App *app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_s
     createDescriptorPool();
     createDescriptorSets();
     createPipelineLayout();
-    createPipeline();
+    createPipelines();
     createLookupBuffers();
     writeInterleaveBuffersDescriptorSet();
 }
@@ -93,7 +93,7 @@ vk::CommandBuffer ZIndexer::generateZIndices(VulkanBuffer particles, u32 num_par
     return cmd_buf;
 }
 
-void ZIndexer::createPipeline() {
+void ZIndexer::createPipelines() {
     auto shader_module = createShaderModuleFromFile(m_app->m_device, "shaders/build/z_indexer.spv");
     auto shader_stage_create_info = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute, shader_module, "main", {});
     auto create_info = vk::ComputePipelineCreateInfo({}, shader_stage_create_info, m_pipeline_layout, {}, {});
@@ -143,15 +143,9 @@ void ZIndexer::createDescriptorSets() {
 }
 
 void ZIndexer::createDescriptorPool() {
-    auto pool_sizes = std::array {
-            vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 50),
-    };
-
-    m_descriptor_pool = m_app->m_device.createDescriptorPool(vk::DescriptorPoolCreateInfo(
-            {},
-            15,
-            pool_sizes
-    ));
+    SimulatorComputeStage::createDescriptorPool(15, {
+            {vk::DescriptorType::eStorageBuffer, 50},
+    });
 }
 
 void ZIndexer::writeInterleaveBuffersDescriptorSet() {
@@ -175,18 +169,4 @@ void ZIndexer::writeParticleBuffersDescriptorSet(VulkanBuffer &particle_buffer, 
     vk::WriteDescriptorSet descriptor_write(m_descriptor_sets.particle_buffers, 0, 0, vk::DescriptorType::eStorageBuffer, {}, buffers, {});
 
     m_app->m_device.updateDescriptorSets(descriptor_write, {});
-}
-
-vk::CommandBuffer ZIndexer::createCommandBuffer() {
-    vk::CommandBufferAllocateInfo alloc_info(m_app->m_compute_command_pool, vk::CommandBufferLevel::eSecondary, 1);
-    auto cmd_buf = m_app->m_device.allocateCommandBuffers(alloc_info).front();
-    auto inheritance_info = vk::CommandBufferInheritanceInfo();
-    cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, &inheritance_info));
-    return cmd_buf;
-}
-
-vk::BufferMemoryBarrier ZIndexer::bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {
-    return {
-            before, after, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, buffer, 0, size
-    };
 }

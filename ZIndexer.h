@@ -3,7 +3,7 @@
 #include "utils.h"
 #include "App.h"
 #include "particle.h"
-
+#include "SimulatorComputeStage.h"
 
 #include <vector>
 
@@ -20,7 +20,7 @@ struct ZIndexerDescriptorSets {
     vk::DescriptorSet interleave_buffers;
 };
 
-class ZIndexer {
+class ZIndexer : public SimulatorComputeStage {
 public:
     ZIndexer(App* app, u32 grid_x, u32 grid_y, u32 grid_z, f32 grid_unit_size);
 
@@ -43,15 +43,14 @@ private:
 
     void createLookupBuffers();
 
-    void createPipeline();
-    void createDescriptorSets();
-    void createDescriptorPool();
+    void createPipelines() final;
+    void createDescriptorSets() final;
+    void createDescriptorPool() final;
     void writeInterleaveBuffersDescriptorSet();
 
     void writeParticleBuffersDescriptorSet(VulkanBuffer& particle_buffer, u32 num_particles, VulkanBuffer& particle_index_buffer, VulkanBuffer& z_index_buffer);
 
 
-    App* m_app;
     u32 m_grid_x;
     u32 m_grid_y;
     u32 m_grid_z;
@@ -60,14 +59,8 @@ private:
     vk::PipelineLayout m_pipeline_layout;
     vk::Pipeline m_pipeline;
     ZIndexerDescriptorSets m_descriptor_sets;
-    vk::DescriptorPool m_descriptor_pool;
 
     void createPipelineLayout();
-
-    vk::CommandBuffer createCommandBuffer();
-
-    vk::BufferMemoryBarrier
-    bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size);
 };
 
 

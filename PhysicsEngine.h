@@ -3,10 +3,7 @@
 #include "PhysicsEngineStructs.h"
 #include "GPURadixSorter.h"
 #include <array>
-
-
-
-class App;
+#include "App.h"
 
 class PhysicsEngine {
 

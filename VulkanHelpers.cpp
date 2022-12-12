@@ -25,13 +25,13 @@ vk::ShaderModule createShaderModuleFromFile(vk::Device& device, const std::strin
 
 
 
-VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info, VmaAllocationCreateInfo alloc_info = {}) {
+VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info, VmaAllocationCreateInfo alloc_info) {
     init(allocator, create_info, alloc_info);
 }
 
 VulkanBuffer::VulkanBuffer(VmaAllocator& allocator, size_t alloc_size,
-    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer,
-    VmaAllocationCreateFlags memoryFlag = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT) {
+    vk::BufferUsageFlags usage,
+    VmaAllocationCreateFlags memoryFlag) {
 
     vk::BufferCreateInfo bufferInfo = {};
     bufferInfo.sType = vk::StructureType::eBufferCreateInfo;
@@ -46,7 +46,7 @@ VulkanBuffer::VulkanBuffer(VmaAllocator& allocator, size_t alloc_size,
     init(allocator, bufferInfo, vmaallocInfo);
 }
 
-void VulkanBuffer::init(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {}) {
+void VulkanBuffer::init(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info) {
 
     if (alloc_info.usage == VMA_MEMORY_USAGE_UNKNOWN) {
         alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
@@ -78,15 +78,19 @@ vk::Buffer& VulkanBuffer::get() {
     return m_buffer;
 }
 
-
-
-vk::DescriptorSetLayoutBinding createDescriptorSetLayoutBinding(u32 binding, u32 count = 1,
-    vk::DescriptorType type = vk::DescriptorType::eStorageBuffer,
-    vk::ShaderStageFlagBits shader_stage = vk::ShaderStageFlagBits::eCompute) {
+vk::DescriptorSetLayoutBinding createDescriptorSetLayoutBinding(u32 binding, u32 count,
+    vk::DescriptorType type,
+    vk::ShaderStageFlagBits shader_stage) {
         vk::DescriptorSetLayoutBinding layout_binding = {};
         layout_binding.binding = binding;
         layout_binding.descriptorCount = count;
         layout_binding.descriptorType = type;
         layout_binding.stageFlags = shader_stage;
         return layout_binding;
+}
+
+vk::BufferMemoryBarrier bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {
+    return {
+            before, after, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, buffer, 0, size
+    };
 }

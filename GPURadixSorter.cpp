@@ -116,8 +116,7 @@ vk::CommandBuffer GPURadixSorter::sort(
     return cmd_buf;
 }
 
-GPURadixSorter::GPURadixSorter(App& app, u32 max_keys) {
-    m_app = &app;
+GPURadixSorter::GPURadixSorter(App* app, u32 max_keys) : SimulatorComputeStage(app) {
     FFX_ParallelSort_CalculateScratchResourceSize(max_keys, m_scratch_buffer_size, m_reduced_scratch_buffer_size);
 
     allocateScratchBuffers(m_scratch_buffer_size, m_reduced_scratch_buffer_size);
@@ -240,39 +239,15 @@ void GPURadixSorter::createDescriptorSets() {
 }
 
 void GPURadixSorter::createDescriptorPool() {
-    auto pool_sizes = std::array {
-        vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 50),
-        vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 10)
-    };
-
-    m_descriptor_pool = m_app->m_device.createDescriptorPool(vk::DescriptorPoolCreateInfo(
-            {},
-            15,
-            pool_sizes
-    ));
-}
-
-GPURadixSorter::~GPURadixSorter() {
-    // TODO
-}
-
-vk::CommandBuffer GPURadixSorter::createCommandBuffer() {
-    vk::CommandBufferAllocateInfo alloc_info(m_app->m_compute_command_pool, vk::CommandBufferLevel::eSecondary, 1);
-    auto cmd_buf = m_app->m_device.allocateCommandBuffers(alloc_info).front();
-    auto inheritance_info = vk::CommandBufferInheritanceInfo();
-    cmd_buf.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, &inheritance_info));
-    return cmd_buf;
+    SimulatorComputeStage::createDescriptorPool(15, {
+            {vk::DescriptorType::eStorageBuffer, 50},
+            {vk::DescriptorType::eUniformBuffer, 10}
+    });
 }
 
 void GPURadixSorter::bindConstantBuffer(vk::DescriptorBufferInfo &const_buf, vk::DescriptorSet& descriptor_set, u32 binding, u32 count) {
     vk::WriteDescriptorSet descriptor_write(descriptor_set, binding, 0, vk::DescriptorType::eUniformBuffer, {}, const_buf, {});
     m_app->m_device.updateDescriptorSets(descriptor_write, {});
-}
-
-vk::BufferMemoryBarrier GPURadixSorter::bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {
-    return {
-        before, after, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, buffer, 0, size
-    };
 }
 
 void GPURadixSorter::bindBuffers(vk::Buffer *buffers, vk::DescriptorSet &descriptor_set, u32 binding, u32 count) {

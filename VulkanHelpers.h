@@ -59,3 +59,6 @@ vk::ShaderModule createShaderModuleFromFile(vk::Device& device, const std::strin
 vk::DescriptorSetLayoutBinding createDescriptorSetLayoutBinding(u32 binding, u32 count = 1,
     vk::DescriptorType type = vk::DescriptorType::eStorageBuffer,
     vk::ShaderStageFlagBits shader_stage = vk::ShaderStageFlagBits::eCompute);
+
+vk::BufferMemoryBarrier
+bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size);
