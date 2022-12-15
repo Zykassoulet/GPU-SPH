@@ -295,28 +295,24 @@ void VulkanContext::createSwapchain() {
 }
 
 
-VulkanBuffer VulkanContext::createBuffer(const u32 buffer_size, vk::BufferUsageFlags usage) {
+VulkanBuffer VulkanContext::createBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count, VmaAllocationCreateInfo alloc_info) {
     vk::BufferCreateInfo buffer_create_info {
         {},                    // Flags
-        buffer_size,                                 // Size
+        object_count * object_size,                                 // Size
         usage,    // Usage
         vk::SharingMode::eExclusive                // Sharing mode
     };
-    return {m_allocator, buffer_create_info};
+
+    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+
+    return {m_allocator, buffer_create_info, object_size, object_count, alloc_info };
 }
 
-VulkanBuffer VulkanContext::createCPUAccessibleBuffer(const u32 buffer_size, vk::BufferUsageFlags usage) {
+VulkanBuffer VulkanContext::createCPUAccessibleBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count) {
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
-    vk::BufferCreateInfo create_info(
-            {},
-            buffer_size,
-            usage,
-            vk::SharingMode::eExclusive
-    );
-
-    return {m_allocator, create_info, alloc_info};
+    return createBuffer(usage, object_size, object_count, alloc_info);
 }
 
 void VulkanContext::createVmaAllocator() {

@@ -12,6 +12,7 @@ add_executable(project main.cpp
         SimulatorComputeStage.cpp
         App.cpp
         VulkanCleaner.cpp
+        DensityCompute.cpp
         )
 
 find_package(Vulkan REQUIRED)

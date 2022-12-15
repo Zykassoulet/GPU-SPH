@@ -53,10 +53,10 @@ void ZIndexer::createLookupBuffers() {
     auto y_data = generateInterleavableY();
     auto z_data = generateInterleavableZ();
 
-    ZIndexLookupBuffers buffers = ZIndexLookupBuffers {
-            m_vk_context->createCPUAccessibleBuffer(x_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
-            m_vk_context->createCPUAccessibleBuffer(y_data.size(), vk::BufferUsageFlagBits::eStorageBuffer),
-            m_vk_context->createCPUAccessibleBuffer(z_data.size(), vk::BufferUsageFlagBits::eStorageBuffer)
+    ZIndexLookupBuffers buffers = {
+            m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), x_data.size()),
+            m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), y_data.size()),
+            m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), z_data.size()),
     };
 
     buffers.x_lookup.load_data(x_data.data(), x_data.size());

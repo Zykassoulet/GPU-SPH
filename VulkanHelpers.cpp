@@ -25,25 +25,10 @@ vk::ShaderModule createShaderModuleFromFile(vk::Device& device, const std::strin
 
 
 
-VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info, VmaAllocationCreateInfo alloc_info) {
+VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info, size_t object_s, size_t object_c, VmaAllocationCreateInfo alloc_info) {
+    object_count = object_c;
+    object_size = object_s;
     init(allocator, create_info, alloc_info);
-}
-
-VulkanBuffer::VulkanBuffer(VmaAllocator& allocator, size_t alloc_size,
-    vk::BufferUsageFlags usage,
-    VmaAllocationCreateFlags memoryFlag) {
-
-    vk::BufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = vk::StructureType::eBufferCreateInfo;
-    bufferInfo.size = alloc_size;
-    bufferInfo.usage = usage;
-
-    VmaAllocationCreateInfo vmaallocInfo = {};
-    vmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    vmaallocInfo.flags = memoryFlag;
-    VulkanBuffer(allocator, bufferInfo, vmaallocInfo);
-
-    init(allocator, bufferInfo, vmaallocInfo);
 }
 
 void VulkanBuffer::init(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info) {
@@ -76,17 +61,6 @@ VulkanBuffer::~VulkanBuffer() {
 
 vk::Buffer& VulkanBuffer::get() {
     return m_buffer;
-}
-
-vk::DescriptorSetLayoutBinding createDescriptorSetLayoutBinding(u32 binding, u32 count,
-    vk::DescriptorType type,
-    vk::ShaderStageFlagBits shader_stage) {
-        vk::DescriptorSetLayoutBinding layout_binding = {};
-        layout_binding.binding = binding;
-        layout_binding.descriptorCount = count;
-        layout_binding.descriptorType = type;
-        layout_binding.stageFlags = shader_stage;
-        return layout_binding;
 }
 
 vk::BufferMemoryBarrier bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {

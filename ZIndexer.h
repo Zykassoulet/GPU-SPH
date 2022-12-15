@@ -47,6 +47,7 @@ private:
     void createDescriptorSets() final;
     void createDescriptorPool() final;
     void writeInterleaveBuffersDescriptorSet();
+    void createPipelineLayout();
 
     void writeParticleBuffersDescriptorSet(VulkanBuffer& particle_buffer, u32 num_particles, VulkanBuffer& particle_index_buffer, VulkanBuffer& z_index_buffer);
 
@@ -60,7 +61,6 @@ private:
     vk::Pipeline m_pipeline;
     ZIndexerDescriptorSets m_descriptor_sets;
 
-    void createPipelineLayout();
 };
 
 

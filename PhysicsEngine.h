@@ -1,9 +1,35 @@
 #pragma once
 
-#include "PhysicsEngineStructs.h"
 #include "GPURadixSorter.h"
 #include <array>
 #include "VulkanContext.h"
+#include "utils.h"
+#include "VulkanInclude.h"
+#include "VulkanHelpers.h"
+#include "glm/glm.hpp"
+#include <vector>
+
+
+struct SimulationParameters {
+	u32 number_particles;
+	std::vector<glm::vec3> particles;
+};
+
+struct BlockData {
+	u32 number_particles;
+	u32 first_particles_offset;
+};
+
+
+struct PhysicsEngineBuffers {
+	VulkanBuffer input_pos_buf;
+	VulkanBuffer pos_buf;
+	VulkanBuffer zindex_buf;
+	VulkanBuffer vel_buf;
+	VulkanBuffer dens_buf;
+	VulkanBuffer block_buf;
+};
+
 
 class PhysicsEngine {
 
@@ -26,8 +52,6 @@ private:
 
 	SimulationParameters sim_params;
 	PhysicsEngineBuffers buffers;
-	PhysicsEngineDescriptorSetLayouts layouts;
-	PhysicsEnginePipelines pipelines;
 
 	GPURadixSorter m_radix_sorter;
 	std::shared_ptr<VulkanContext> m_vk_context;

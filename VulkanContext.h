@@ -88,8 +88,8 @@ private:
     void createSwapchain();
 
 
-    VulkanBuffer createBuffer(const u32 buffer_size, vk::BufferUsageFlags usage);
-    VulkanBuffer createCPUAccessibleBuffer(const u32 buffer_size, vk::BufferUsageFlags usage);
+    VulkanBuffer createBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count = 1, VmaAllocationCreateInfo alloc_info = {});
+    VulkanBuffer createCPUAccessibleBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count = 1);
 
     void createComputeCommandPool();
 
@@ -118,4 +118,5 @@ private:
     friend class SimulatorComputeStage;
     friend class PhysicsEngine;
     friend class App;
+    friend class DensityCompute;
 };
