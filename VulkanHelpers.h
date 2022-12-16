@@ -25,6 +25,9 @@ public:
     void init(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {});
 
     vk::Buffer& get();
+    size_t get_size();
+
+    vk::DescriptorBufferInfo getDescriptorBufferInfo();
 
     template<typename T>
     void store_data(T* data, u32 count) {

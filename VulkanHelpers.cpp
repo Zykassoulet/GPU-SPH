@@ -63,6 +63,15 @@ vk::Buffer& VulkanBuffer::get() {
     return m_buffer;
 }
 
+size_t VulkanBuffer::get_size() {
+    return object_count * object_size;
+}
+
+vk::DescriptorBufferInfo VulkanBuffer::getDescriptorBufferInfo() {
+    return vk::DescriptorBufferInfo(m_buffer, 0, object_count * object_size);
+}
+
+
 vk::BufferMemoryBarrier bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {
     return {
             before, after, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, buffer, 0, size
