@@ -119,4 +119,6 @@ private:
     friend class PhysicsEngine;
     friend class App;
     friend class DensityCompute;
+    friend class VelocityCompute;
+    friend class PositionCompute;
 };

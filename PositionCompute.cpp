@@ -1,9 +1,9 @@
-#include "DensityCompute.h"
+#include "PositionCompute.h"
 #include <array>
 
 
 
-DensityCompute::DensityCompute(std::shared_ptr<VulkanContext> vulkan_context) : SimulatorComputeStage(vulkan_context) {
+PositionCompute::PositionCompute(std::shared_ptr<VulkanContext> vulkan_context) : SimulatorComputeStage(vulkan_context) {
 	createDescriptorPool();
 	createDescriptorSets();
 	createPipelineLayouts();
@@ -11,22 +11,20 @@ DensityCompute::DensityCompute(std::shared_ptr<VulkanContext> vulkan_context) : 
 }
 
 
-void DensityCompute::createDescriptorPool() {
+void PositionCompute::createDescriptorPool() {
 	SimulatorComputeStage::createDescriptorPool(10, {
 		{ vk::DescriptorType::eStorageBuffer,10 }
-	});
+		});
 }
 
-void DensityCompute::createDescriptorSets() {
-	auto density_buffer_bindings = std::array{
+void PositionCompute::createDescriptorSets() {
+	auto position_buffer_bindings = std::array{
 		vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute,{}),
-		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute,{}),
-		vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute,{}),
-		vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute,{})
+		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute,{})
 	};
 
 
-	vk::DescriptorSetLayoutCreateInfo layout_info({}, density_buffer_bindings);
+	vk::DescriptorSetLayoutCreateInfo layout_info({}, position_buffer_bindings);
 	descriptor_sets.layout = m_vk_context->m_device.createDescriptorSetLayout(layout_info);
 	deferDelete([descriptor_set_layout = descriptor_sets.layout](auto vk_context) {
 		vk_context->m_device.destroyDescriptorSetLayout(descriptor_set_layout);
@@ -39,8 +37,8 @@ void DensityCompute::createDescriptorSets() {
 	assert(result == vk::Result::eSuccess);
 }
 
-void DensityCompute::createPipelineLayouts() {
-	vk::PushConstantRange constant_range(vk::ShaderStageFlagBits::eCompute, 0, sizeof(DensityComputePushConstants));
+void PositionCompute::createPipelineLayouts() {
+	vk::PushConstantRange constant_range(vk::ShaderStageFlagBits::eCompute, 0, sizeof(PositionComputePushConstants));
 
 	vk::PipelineLayoutCreateInfo layout_create_info({}, descriptor_sets.layout, constant_range);
 	pipeline_layout = m_vk_context->m_device.createPipelineLayout(layout_create_info);
@@ -49,8 +47,8 @@ void DensityCompute::createPipelineLayouts() {
 		});
 }
 
-void DensityCompute::createPipelines() {
-	vk::ShaderModule shader_module = createShaderModuleFromFile(m_vk_context->m_device, "shaders/build/density.spv");
+void PositionCompute::createPipelines() {
+	vk::ShaderModule shader_module = createShaderModuleFromFile(m_vk_context->m_device, "shaders/build/position.spv");
 	vk::PipelineShaderStageCreateInfo shader_stage_create_info({}, vk::ShaderStageFlagBits::eCompute, shader_module, "main", {});
 	vk::ComputePipelineCreateInfo create_info({}, shader_stage_create_info, pipeline_layout, {}, {});
 	pipeline = m_vk_context->m_device.createComputePipeline({}, create_info).value;
@@ -59,21 +57,19 @@ void DensityCompute::createPipelines() {
 		});
 }
 
-vk::UniqueCommandBuffer DensityCompute::computeDensities(VulkanBuffer& position_buffer, VulkanBuffer& zindex_buffer, VulkanBuffer& blocks_buffer, VulkanBuffer& density_buffer, DensityComputePushConstants push_constants) {
+vk::UniqueCommandBuffer PositionCompute::computeVelocities(VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer, PositionComputePushConstants push_constants) {
 	auto cmd_buf = createCommandBuffer();
 
 	cmd_buf->bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline_layout, 0, descriptor_sets.set, {});
 
-	cmd_buf->pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, vk::ArrayProxy<const DensityComputePushConstants>(push_constants));
+	cmd_buf->pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, vk::ArrayProxy<const PositionComputePushConstants>(push_constants));
 
 	auto barriers = std::array{
 		bufferTransition(position_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, position_buffer.get_size()),
-		bufferTransition(blocks_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, blocks_buffer.get_size()),
-		bufferTransition(density_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, density_buffer.get_size()),
-		bufferTransition(zindex_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, zindex_buffer.get_size())
+		bufferTransition(velocity_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, velocity_buffer.get_size())
 	};
 
-	
+
 	cmd_buf->bindPipeline(vk::PipelineBindPoint::eCompute, pipeline);
 
 	cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
@@ -87,12 +83,10 @@ vk::UniqueCommandBuffer DensityCompute::computeDensities(VulkanBuffer& position_
 	return cmd_buf;
 }
 
-void DensityCompute::writeBuffersDescriptorSet(VulkanBuffer& position_buffer, VulkanBuffer& zindex_buffer, VulkanBuffer& blocks_buffer, VulkanBuffer& density_buffer) {
+void PositionCompute::writeBuffersDescriptorSet(VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer) {
 	auto buffers = std::array{
 		position_buffer.getDescriptorBufferInfo(),
-		zindex_buffer.getDescriptorBufferInfo(),
-		density_buffer.getDescriptorBufferInfo(),
-		blocks_buffer.getDescriptorBufferInfo()
+		velocity_buffer.getDescriptorBufferInfo()
 	};
 
 	vk::WriteDescriptorSet decriptor_set_write(descriptor_sets.set, 0, 0, vk::DescriptorType::eStorageBuffer, {}, buffers, {});

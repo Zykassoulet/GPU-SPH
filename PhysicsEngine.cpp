@@ -37,7 +37,8 @@ void PhysicsEngine::initSimulationParameters() {
         int(ceil(sim_params.box_size.z / sim_params.blocks_size))
     );
 
-    sim_params.particle_radius = 0.01; //I dont know what to put here
+    sim_params.particle_radius = 0.01; //TO TWEAK
+    sim_params.dt = 0.01; //TO TWEAK
 
 }
 

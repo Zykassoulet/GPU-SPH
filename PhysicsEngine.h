@@ -25,6 +25,7 @@ struct SimulationParameters {
 	glm::vec3 initial_liquid_domain;
 	float blocks_size;
 	glm::ivec3 blocks_count;
+	float dt;
 };
 
 struct BlockData {

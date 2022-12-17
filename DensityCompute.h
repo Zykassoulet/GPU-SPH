@@ -6,6 +6,7 @@
 #include "SimulatorComputeStage.h"
 
 #include <vector>
+#include "glm/glm.hpp"
 
 
 struct DensityComputeDescriptorSets {
@@ -16,6 +17,8 @@ struct DensityComputeDescriptorSets {
 struct DensityComputePushConstants {
 	u32 num_particles;
 	float kernel_radius;
+	glm::ivec3 blocks_count;
+	float particle_mass;
 };
 
 
@@ -24,7 +27,7 @@ public:
 	DensityCompute(std::shared_ptr<VulkanContext> vulkan_context);
 
 
-	vk::UniqueCommandBuffer computeDensities(VulkanBuffer& position_buffer, VulkanBuffer& zindex_buffer, VulkanBuffer& blocks_buffer, VulkanBuffer& density_buffer, u32 num_particles, float kernel_radius);
+	vk::UniqueCommandBuffer computeDensities(VulkanBuffer& position_buffer, VulkanBuffer& zindex_buffer, VulkanBuffer& blocks_buffer, VulkanBuffer& density_buffer, DensityComputePushConstants push_constants);
 
 
 private:

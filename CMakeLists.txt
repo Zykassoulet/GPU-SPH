@@ -13,7 +13,7 @@ add_executable(project main.cpp
         App.cpp
         VulkanCleaner.cpp
         DensityCompute.cpp
-        )
+         "VelocityCompute.cpp" "VelocityCompute.h" "PositionCompute.h" "PositionCompute.cpp")
 
 find_package(Vulkan REQUIRED)
 add_subdirectory(vendor)
