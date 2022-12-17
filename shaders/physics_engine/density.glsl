@@ -47,33 +47,47 @@ float kernel(float r){
 	return r < kernel_radius ? res : 0;
 }
 
-int getBlockID(ivec3 zindex){
+ivec3 zindexToBlockPos(ivec3 zindex){
 	
 }
 
-int getNeighborBlockID(int blockid, ivec3 offset){
-	int offset_x = 
-	int offset_y = 
-	int offset_z = 
-	return block_id + offset_x + offset_y + offset_z;
+int blockPosToBlockID(ivec3 block_pos){
+
 }
 
-bool isBlockInDomain(int block_id){
+ivec3 blockIDToBlockPos(int block_id){
 
+}
+
+bool isInBlockDomain(ivec3 block_pos){
+	return 0 <= block_pos.x && block_pos.x < blocks_count.x &&
+		0 <= block_pos.y && block_pos.y < blocks_count.y && 
+		0 <= block_pos.z && block_pos.z < blocks_count.z;
 }
 
 void main() {
-	if (gl_GlobalInvocationID.x < num_particles){
-		int block_id = getBlockID(zindexBuffer[gl_GlobalInvocationID.x]);
+	uint cur_part_id = gl_GlobalInvocationID.x;
+	if (cur_part_id < num_particles){
+		float density = 0;
+		ivec3 block_pos = zindexToBlockPos(zindexBuffer[cur_part_id]);
 		for (int i = -1; i < 2; i++){
 			for (int j = -1; j < 2; j++){
 				for (int k = -1; k < 2; k++){
-					int neighbor_block_id = getNeighborBlockID(block_id, ivec3(i,j,k));
-					if( isBlockInDomain(neighbor_block_id)){
-
+					ivec3 neighbor_block_pos = block_pos + ivec3(i,j,k);
+					if( isInBlockDomain(neighbor_block_pos)){
+						int neighbor_block_id = blockPosToBlockID(neighbor_block_pos);
+						int first_particle_id = blockDataBuffer[neighbor_block_id].first_particles_offset;
+						int num_particles = blockDataBuffer[neighbor_block_id].number_particles;
+						for (int p = first_particle_id; p < first_particle_id + num_particles; p++){
+							if (p != cur_part_id){
+								float dist = length(posBuffer[p] - posBuffer[cur_part_id]);
+								density += particle_mass * kernel(dist);
+							}
+						}
 					}
 				}
 			}
 		}
+		densityBuffer[cur_part_id] = density;
 	}
 }
