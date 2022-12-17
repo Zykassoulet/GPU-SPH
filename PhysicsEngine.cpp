@@ -1,5 +1,10 @@
 #include <random>
 #include "PhysicsEngine.h"
+#include <math.h>
+#include "thinks/poisson_disk_sampling/poisson_disk_sampling.h"
+#include <vector>
+#include <array>
+#include <algorithm>
 
 PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context)
     : m_radix_sorter(vulkan_context, 1024) {
@@ -9,9 +14,30 @@ PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context)
 }
 
 void PhysicsEngine::initSimulationParameters() {
-	int n_part = 10;
-	sim_params.number_particles = n_part;
-	sim_params.particles = std::vector<glm::vec3>(n_part);
+    sim_params.box_size = glm::vec3(1.f, 1.f, 1.f);
+    sim_params.initial_liquid_domain = glm::vec3(1.f, 0.5f, 1.f);
+    sim_params.rest_density = 1000.f;
+    float initial_spacing = 0.05f;
+    sim_params.kernel_radius = 2.f * initial_spacing;
+    sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing,3);
+
+    std::array<float, 3> k_min{ 0.f, 0.f, 0.f };
+    std::array<float, 3> k_max = { sim_params.initial_liquid_domain.x, sim_params.initial_liquid_domain.y, sim_params.initial_liquid_domain.z };
+    std::vector<std::array<float, 3>> poisson_sampling = thinks::PoissonDiskSampling(initial_spacing, k_min, k_max);
+	sim_params.number_particles = poisson_sampling.size();
+	sim_params.particles = std::vector<glm::vec3>(sim_params.number_particles);
+    std::transform(poisson_sampling.begin(), poisson_sampling.end(), sim_params.particles.begin(),
+        [](std::array<float, 3> coords) {return glm::vec3(coords[0], coords[1], coords[2]); }
+    );
+
+    sim_params.blocks_size = sim_params.kernel_radius;
+    sim_params.blocks_count = glm::ivec3(
+        int(ceil(sim_params.box_size.x / sim_params.blocks_size)),
+        int(ceil(sim_params.box_size.y / sim_params.blocks_size)),
+        int(ceil(sim_params.box_size.z / sim_params.blocks_size))
+    );
+
+    sim_params.particle_radius = 0.01; //I dont know what to put here
 
 }
 

@@ -10,9 +10,21 @@
 #include <vector>
 
 
+
+
+
+
 struct SimulationParameters {
 	u32 number_particles;
 	std::vector<glm::vec3> particles;
+	float kernel_radius;
+	float particle_radius;
+	float particle_mass;
+	float rest_density;
+	glm::vec3 box_size;
+	glm::vec3 initial_liquid_domain;
+	float blocks_size;
+	glm::ivec3 blocks_count;
 };
 
 struct BlockData {
