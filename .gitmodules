@@ -13,6 +13,6 @@
 [submodule "vendor/glm"]
 	path = vendor/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "vendor/thinks"]
-	path = vendor/thinks
+[submodule "vendor/thinks/poisson-disk-sampling"]
+	path = vendor/thinks/poisson-disk-sampling
 	url = https://github.com/thinks/poisson-disk-sampling.git

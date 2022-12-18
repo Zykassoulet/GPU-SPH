@@ -10,9 +10,6 @@ layout(push_constant) uniform DensityComputePushConstants {
 	uint block_size; // In Z-index space (real space/grid spacing)
 	float kernel_radius;
 	float particle_mass;
-	float stiffness;
-	float rest_density;
-	float gamma;
 	ivec4 simulation_domain; // In Z-index space (real space/grid spacing)
 };
 
@@ -28,12 +25,16 @@ layout(set = 0, binding = 2) readonly buffer PosBuffer {
 	vec4 position_buffer[];
 };
 
-layout(set = 0, binding = 3) writeonly buffer DensityBuffer {
+layout(set = 0, binding = 3) readonly buffer DensityBuffer {
 	float density_buffer[];
 };
 
-layout(set = 0, binding = 4) writeonly buffer PressureBuffer {
-	float pressure_buffer[];
+layout(set = 0, binding = 4) readonly buffer VelocityBuffer {
+	vec4 velocity_buffer[];
+};
+
+layout(set = 0, binding = 5) readonly buffer PressureBuffer {
+	vec4 velocity_buffer[];
 };
 
 struct Block {
@@ -49,9 +50,20 @@ layout(std140, set = 1, binding = 1) readonly buffer CompactedBlockBuffer {
 	Block compacted_block_buffer[];
 };
 
+layout(std140, set = 2, binding = 0) writeonly buffer OutPosBuffer {
+	vec4 out_position_buffer[];
+};
+
+layout(std140, set = 2, binding = 1) writeonly buffer OutVelocityBuffer {
+	vec4 out_velocity_buffer[];
+};
+
 struct ParticleInfo {
 	bool valid;
 	vec4 position;
+	float density;
+	float pressure;
+	vec4 velocity;
 };
 
 shared ParticleInfo sParticles[256];
@@ -68,6 +80,9 @@ void fetchParticle(uint source_block_index, uint particle_offset) {
 	sParticles[particle_offset].valid = (particle_offset < source_block.num_particles);
 	if ((particle_offset < source_block.num_particles)) {
 		sParticles[particle_offset].position = position_buffer[global_particle_index];
+		sParticles[particle_offset].density = density_buffer[global_particle_index];
+		sParticles[particle_offset].velocity = velocity_buffer[global_particle_index];
+		sParticles[particle_offset].pressure = pressure_buffer[global_particle_index];
 	}
 }
 
@@ -79,17 +94,18 @@ ParticleInfo fetchCurrentParticle(Block current_block, uint particle_offset) {
 	particle.valid = (particle_offset < current_block.num_particles);
 	if (particle.valid) {
 		particle.position = position_buffer[global_particle_index];
+		particle.density = density_buffer[global_particle_index];
+		particle.velocity = velocity_buffer[global_particle_index];
+		particle.pressure = pressure_buffer[global_particle_index];
 	}
 	return particle;
 }
 
-float kernel(float r){
+vec4 gradKernel(vec4 dx){
+	float d = length(dx);
 	float h_2 = kernel_radius * kernel_radius;
-	float h_3 = h_2 * kernel_radius;
-	float r_2 = r * r;
-	float a = (h_2 - r_2) / h_3;
-	float res = 315./(64.*pi) * a * a * a;
-	return r < kernel_radius ? res : 0;
+	float a = (h_2- d * d)/(h_2 * h_2);
+	return -945.f / (32.f * pi * kernel_radius) * a * a * dx;
 }
 
 uint deinterleave(uint value, uint offset, uint spacing) {
@@ -122,8 +138,8 @@ int getNeighborBlockIndex(Block block, ivec3 offset) {
 	block_z += offset.z * int(block_size);
 
 	if (block_x >= 0 && block_x < simulation_domain.x
-		&& block_y >= 0 && block_y < simulation_domain.y
-		&& block_z >= 0 && block_z < simulation_domain.z) {
+	&& block_y >= 0 && block_y < simulation_domain.y
+	&& block_z >= 0 && block_z < simulation_domain.z) {
 		block_z_index = interleave(block_x, 0, 3) | interleave(block_y, 1, 3) | interleave(block_z, 2, 3);
 		return int(block_z_index / S3);
 	} else {
@@ -134,7 +150,7 @@ int getNeighborBlockIndex(Block block, ivec3 offset) {
 void main() {
 	Block current_block = compacted_block_buffer[gl_WorkGroupID.x];
 	uint particle_index = gl_LocalInvocationID.x;
-	float local_density = 0;
+	vec4 force = vec4(0.0);
 	ParticleInfo current_particle = fetchCurrentParticle(current_block, particle_index);
 
 	for (int i = -1; i <= 1; i++) {
@@ -150,7 +166,9 @@ void main() {
 				if (current_particle.valid) {
 					for (int o = 0; o < 256; o++) {
 						if (sParticles[o].valid) {
-							local_density += particle_mass * kernel(length(sParticles[o].position - current_particle.position));
+							force -= (particle_mass/sParticles[o].density)
+									* (current_particle.pressure + sParticles[o].pressure)/2.0
+									* gradKernel(current_particle.position - sParticles[o].position);
 						}
 					}
 				}
@@ -158,10 +176,15 @@ void main() {
 		}
 	}
 
+	force += particle_mass * vec4(0, 0, -9.81, 0); // Gravity
+
+	// TODO: boundary forces
+
 	uint global_particle_index = getGlobalParticleIndex(current_block, particle_index);
 	if (current_particle.valid) {
-		density_buffer[global_particle_index] = local_density;
-		float pressure = (stiffness * rest_density / gamma) * (pow(local_density/rest_density, gamma) - 1.0f);
-		pressure_buffer[global_particle_index] = pressure;
+		vec4 velocity = velocity_buffer[global_particle_index] + dt * force/particle_mass;
+		vec4 position = position_buffer[global_particle_index] + dt * velocity;
+		out_velocity_buffer[global_particle_index] = velocity;
+		out_position_buffer[global_particle_index] = position;
 	}
 }
