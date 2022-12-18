@@ -16,7 +16,7 @@ layout(std430, set = 0, binding = 1) buffer BlockBuffer {
     Block block_buffer[];
 };
 
-layout(std430, push_constant) uniform GridInfo {
+layout(std140, push_constant) uniform GridInfo {
     uint block_size; // S
 };
 

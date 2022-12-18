@@ -12,6 +12,7 @@ class SimulatorComputeStage : protected VulkanCleaner {
 public:
     explicit SimulatorComputeStage(std::shared_ptr<VulkanContext> vulkan_context) : VulkanCleaner(std::move(vulkan_context)) {}
     SimulatorComputeStage(const SimulatorComputeStage&) = delete;
+
     SimulatorComputeStage& operator=(const SimulatorComputeStage&) = delete;
 
 protected:

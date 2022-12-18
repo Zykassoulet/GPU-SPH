@@ -73,8 +73,8 @@ struct ShaderPushConstants {
     f32 grid_unit_size;
 };
 
-vk::UniqueCommandBuffer ZIndexer::generateZIndices(VulkanBuffer particles, u32 num_particles, VulkanBuffer z_index_buffer,
-                                             VulkanBuffer particle_index_buffer) {
+vk::UniqueCommandBuffer ZIndexer::generateZIndices(VulkanBuffer& particles, u32 num_particles, VulkanBuffer& z_index_buffer,
+                                             VulkanBuffer& particle_index_buffer) {
     writeParticleBuffersDescriptorSet(particles, num_particles, particle_index_buffer, z_index_buffer);
 
     auto cmd_buf = createCommandBuffer();

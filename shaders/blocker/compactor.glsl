@@ -16,23 +16,29 @@ layout(std430, set = 0, binding = 1) buffer CompactedBlockBuffer {
     Block compacted_block_buffer[];
 };
 
-layout(std430, set = 0, binding = 2) buffer CompactedInfo {
-    uint compacted_block_count;
+struct DispatchCommand {
+    uint x;
+    uint y;
+    uint z;
 };
 
-layout(std430, push_constant) uniform SimInfo {
-    uint max_particles_per_block; // S
+layout(std430, set = 0, binding = 2) buffer CompactedInfo {
+    DispatchCommand dispatch_block;
 };
+
+#define max_particles_per_block 256u
 
 void main() {
     if (gl_GlobalInvocationID.x < uncompacted_block_buffer.length()) {
         Block b = uncompacted_block_buffer[gl_GlobalInvocationID.x];
         for (uint offset = 0; offset < b.num_particles; offset += max_particles_per_block) {
-            uint i = atomicAdd(compacted_block_count, 1);
+            uint i = atomicAdd(dispatch_block.x, 1);
             Block out_block;
             out_block.first_particle_index = offset;
             out_block.num_particles = min(max_particles_per_block, b.num_particles - offset);
-            compacted_block_buffer[i] = out_block;
+            if (i < compacted_block_buffer.length()) {
+                compacted_block_buffer[i] = out_block;
+            }
         }
     }
 }

@@ -1,16 +1,16 @@
 #version 460
 #pragma shader_stage(compute)
-#extension GL_KHR_vulkan_glsl : enable
 
 #define pi 3.141592653589793238
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(push_constant) uniform DensityComputePushConstants {
+layout(std140, push_constant) uniform DensityComputePushConstants {
+	ivec4 simulation_domain; // In Z-index space (real space/grid spacing)
 	uint block_size; // In Z-index space (real space/grid spacing)
 	float kernel_radius;
 	float particle_mass;
-	ivec4 simulation_domain; // In Z-index space (real space/grid spacing)
+	float dt;
 };
 
 layout(set = 0, binding = 0) readonly buffer ZIndexBuffer {
@@ -34,7 +34,7 @@ layout(set = 0, binding = 4) readonly buffer VelocityBuffer {
 };
 
 layout(set = 0, binding = 5) readonly buffer PressureBuffer {
-	vec4 velocity_buffer[];
+	float pressure_buffer[];
 };
 
 struct Block {
@@ -112,7 +112,7 @@ uint deinterleave(uint value, uint offset, uint spacing) {
 	uint o = 0;
 	uint i = 0;
 	for (uint bit = offset; bit < 32; bit += spacing, i++) {
-		o |= ((value & (1u << bit) ? 1u : 0u) << i);
+		o |= (((value & (1u << bit)) != 0 ? 1u : 0u) << i);
 	}
 	return o;
 }
@@ -121,7 +121,7 @@ uint interleave(uint value, uint offset, uint spacing) {
 	uint o = 0;
 	uint i = 0;
 	for (uint bit = offset; bit < 32; bit += spacing, i++) {
-		o |= ((value & (1u << i) ? 1u : 0u) << bit);
+		o |= (((value & (1u << i)) != 0 ? 1u : 0u) << bit);
 	}
 	return o;
 }

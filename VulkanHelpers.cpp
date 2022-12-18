@@ -42,13 +42,20 @@ void VulkanBuffer::init(VmaAllocator& allocator, vk::BufferCreateInfo& create_in
     assert(result == VK_SUCCESS);
 }
 
-VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept : m_allocation(std::exchange(other.m_allocation, nullptr)), m_buffer(other.m_buffer), m_allocator(other.m_allocator) {}
+VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept
+    : m_allocation(std::exchange(other.m_allocation, nullptr)),
+    m_buffer(other.m_buffer),
+    m_allocator(other.m_allocator),
+    object_size(other.object_size),
+    object_count(other.object_count) {}
 
 VulkanBuffer &VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
     m_allocation = nullptr;
     std::swap(m_allocation, other.m_allocation);
     m_buffer = other.m_buffer;
     m_allocator = other.m_allocator;
+    object_size = other.object_size;
+    object_count = other.object_count;
 
     return *this;
 }
@@ -71,9 +78,20 @@ vk::DescriptorBufferInfo VulkanBuffer::getDescriptorBufferInfo() {
     return vk::DescriptorBufferInfo(m_buffer, 0, object_count * object_size);
 }
 
+VulkanBuffer::VulkanBuffer(VmaAllocator &allocator, vk::BufferCreateInfo &create_info,
+                           VmaAllocationCreateInfo alloc_info)
+   : VulkanBuffer(allocator, create_info, 1, (size_t) create_info.size, alloc_info) {}
+
 
 vk::BufferMemoryBarrier bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size) {
     return {
             before, after, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, buffer, 0, size
     };
+}
+
+vk::BufferMemoryBarrier generalReadWriteBarrier(VulkanBuffer& buffer) {
+    return bufferTransition(buffer.get(),
+                            vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+                            vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+                            buffer.get_size());
 }

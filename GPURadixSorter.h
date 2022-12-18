@@ -52,7 +52,7 @@ private:
 
     template<typename T>
     std::tuple<VulkanBuffer, vk::DescriptorBufferInfo> allocConstBuffer(T& data) {
-        VulkanBuffer buffer = m_vk_context->createCPUAccessibleBuffer(sizeof(T), vk::BufferUsageFlagBits::eUniformBuffer);
+        VulkanBuffer buffer = m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eUniformBuffer, sizeof(T));
 
         buffer.store_data(&data, 1);
 
