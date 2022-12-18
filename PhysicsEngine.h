@@ -26,6 +26,7 @@ struct SimulationParameters {
 	float blocks_size;
 	glm::ivec3 blocks_count;
 	float dt;
+	float k;
 };
 
 struct BlockData {

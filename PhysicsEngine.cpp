@@ -17,6 +17,7 @@ void PhysicsEngine::initSimulationParameters() {
     sim_params.box_size = glm::vec3(1.f, 1.f, 1.f);
     sim_params.initial_liquid_domain = glm::vec3(1.f, 0.5f, 1.f);
     sim_params.rest_density = 1000.f;
+    sim_params.k = sim_params.rest_density;
     float initial_spacing = 0.05f;
     sim_params.kernel_radius = 2.f * initial_spacing;
     sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing,3);

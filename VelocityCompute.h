@@ -20,6 +20,8 @@ struct VelocityComputePushConstants {
 	glm::ivec3 blocks_count;
 	float particle_mass;
 	float dt;
+	float rest_density;
+	float k;
 };
 
 
