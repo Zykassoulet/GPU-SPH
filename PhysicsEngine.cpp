@@ -6,11 +6,16 @@
 #include <array>
 #include <algorithm>
 
-PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context)
-    : m_radix_sorter(vulkan_context, 1024) {
+PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context) :
+    m_radix_sorter(vulkan_context, 1024),
+    density_compute(vulkan_context),
+    velocity_compute(vulkan_context),
+    position_compute(vulkan_context)
+{
     m_vk_context = vulkan_context;
 	initSimulationParameters();
 	initBuffers();
+    loadInitialPositions();
 }
 
 void PhysicsEngine::initSimulationParameters() {
@@ -38,7 +43,7 @@ void PhysicsEngine::initSimulationParameters() {
         int(ceil(sim_params.box_size.z / sim_params.blocks_size))
     );
 
-    sim_params.particle_radius = 0.01; //TO TWEAK
+    sim_params.particle_radius = initial_spacing/2.f; //TO TWEAK
     sim_params.dt = 0.01; //TO TWEAK
 
 }
@@ -54,12 +59,11 @@ void PhysicsEngine::initBuffers() {
 
 void PhysicsEngine::initInputPosBuffer() {
 	vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eStorageBuffer;
-	VmaAllocationCreateFlags memory_flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 	buffers.input_pos_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createCPUAccessibleBuffer(usage, sizeof(glm::vec3), sim_params.number_particles);
 }
 
 void PhysicsEngine::initPosBuffer() {
-	vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
+	vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer;
 	buffers.pos_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(glm::vec3), sim_params.number_particles);
 }
 
@@ -83,9 +87,29 @@ void PhysicsEngine::initBlocksDataBuffer() {
 	buffers.dens_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(BlockData), sim_params.number_particles);
 }
 
-PhysicsEngine::~PhysicsEngine() {
+void PhysicsEngine::loadInitialPositions() {
+    buffers.input_pos_buf.store_data(sim_params.particles.data(), sim_params.particles.size());
+    vk::CommandBufferAllocateInfo primary_cmd_buf_alloc_info(m_vk_context->m_graphics_command_pool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::UniqueCommandBuffer cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(primary_cmd_buf_alloc_info).front());
+    cmd_buf->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    vk::BufferCopy copyInfo(0, 0, buffers.input_pos_buf.get_size());
+    cmd_buf->copyBuffer(buffers.input_pos_buf.get(), buffers.pos_buf.get(), copyInfo);
+    cmd_buf->end();
 
+    vk::SubmitInfo submit_info({}, {}, cmd_buf.get(), {});
+    vk::Fence finish_fence = m_vk_context->m_device.createFence({});
+    m_vk_context->m_queues.compute.submit(submit_info, finish_fence);
+
+    m_vk_context->m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
 }
+
+
+PhysicsEngine::~PhysicsEngine() {
+    
+}
+
+
+
 
 void PhysicsEngine::step() {
     std::vector<u32> data(256);

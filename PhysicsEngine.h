@@ -1,6 +1,9 @@
 #pragma once
 
 #include "GPURadixSorter.h"
+#include "DensityCompute.h"
+#include "VelocityCompute.h"
+#include "PositionCompute.h"
 #include <array>
 #include "VulkanContext.h"
 #include "utils.h"
@@ -64,11 +67,18 @@ private:
     void initDensBuffer();
     void initBlocksDataBuffer();
 
+	void loadInitialPositions();
+
 	SimulationParameters sim_params;
 	PhysicsEngineBuffers buffers;
 
 	GPURadixSorter m_radix_sorter;
+	DensityCompute density_compute;
+	VelocityCompute velocity_compute;
+	PositionCompute position_compute;
+
 	std::shared_ptr<VulkanContext> m_vk_context;
+
 
 	
 

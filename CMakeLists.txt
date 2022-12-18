@@ -13,7 +13,7 @@ add_executable(project main.cpp
         App.cpp
         VulkanCleaner.cpp
         DensityCompute.cpp
-         "VelocityCompute.cpp" "VelocityCompute.h" "PositionCompute.h" "PositionCompute.cpp")
+         "VelocityCompute.cpp" "VelocityCompute.h" "PositionCompute.h" "PositionCompute.cpp" "Renderer.cpp" "Renderer.h")
 
 find_package(Vulkan REQUIRED)
 add_subdirectory(vendor)
@@ -40,3 +40,5 @@ compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_ScanAdd)
 compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_Scatter)
 compile_glsl_shader(shaders/z_indexer/z_indexer.glsl)
 compile_glsl_shader(shaders/physics_engine/density.comp)
+compile_glsl_shader(shaders/physics_engine/position.comp)
+compile_glsl_shader(shaders/physics_engine/velocity.comp)

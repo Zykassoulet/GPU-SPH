@@ -36,15 +36,13 @@ layout(std140,set = 0, binding = 3) readonly buffer BlockDataBuffer{
 	BlockData blockDataBuffer[];
 };
 
+float poly6KernelC = 315./(64. * pi * pow(kernel_radius,9));
+float h_2 = kernel_radius * kernel_radius;
 
-
-float kernel(float r){
-	float h_2 = kernel_radius * kernel_radius;
-	float h_3 = h_2 * kernel_radius;
-	float r_2 = r * r;
-	float a = (h_2 - r_2) / h_3;
-	float res = 315./(64.*pi) * a * a * a;
-	return r < kernel_radius ? res : 0;
+float poly6Kernel(float d_2){
+	float a = (h_2 - d_2);
+	float res = poly6KernelC * a * a * a;
+	return d_2 < h_2 ? res : 0;
 }
 
 ivec3 zindexToBlockPos(ivec3 zindex){
@@ -55,9 +53,6 @@ int blockPosToBlockID(ivec3 block_pos){
 
 }
 
-ivec3 blockIDToBlockPos(int block_id){
-
-}
 
 bool isInBlockDomain(ivec3 block_pos){
 	return 0 <= block_pos.x && block_pos.x < blocks_count.x &&
@@ -80,8 +75,8 @@ void main() {
 						int num_particles = blockDataBuffer[neighbor_block_id].number_particles;
 						for (int p = first_particle_id; p < first_particle_id + num_particles; p++){
 							if (p != cur_part_id){
-								float dist = length(posBuffer[p] - posBuffer[cur_part_id]);
-								density += particle_mass * kernel(dist);
+								vec3 dx = posBuffer[p] - posBuffer[cur_part_id];
+								density += particle_mass * poly6Kernel(dot(dx,dx));
 							}
 						}
 					}

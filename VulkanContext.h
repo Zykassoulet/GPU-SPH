@@ -92,6 +92,7 @@ private:
     VulkanBuffer createCPUAccessibleBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count = 1);
 
     void createComputeCommandPool();
+    void createGraphicsCommandPool();
 
     // GLFW stuff
     void initWindow();
@@ -110,6 +111,7 @@ private:
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
     vk::CommandPool m_compute_command_pool;
+    vk::CommandPool m_graphics_command_pool;
 
     void destroyVmaAllocator();
 
@@ -121,4 +123,5 @@ private:
     friend class DensityCompute;
     friend class VelocityCompute;
     friend class PositionCompute;
+    friend class Renderer;
 };

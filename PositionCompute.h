@@ -25,7 +25,7 @@ public:
 	PositionCompute(std::shared_ptr<VulkanContext> vulkan_context);
 
 
-	vk::UniqueCommandBuffer computeVelocities(VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer, PositionComputePushConstants push_constants);
+	vk::UniqueCommandBuffer computePositions(VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer, PositionComputePushConstants push_constants);
 
 
 private:

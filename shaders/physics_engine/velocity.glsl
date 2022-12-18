@@ -51,11 +51,12 @@ float pressure(float density){
 }
 
 
-vec3 gradKernel(vec3 dx){
+float gradSpikyKernelC = - 45. / (pi * pow(kernel_radius,6));
+
+vec3 gradSpikyKernel(vec3 dx){
 	float d = length(dx);
-	float h_2 = kernel_radius * kernel_radius;
-	float a = (h_2- d * d)/(h_2 * h_2);
-	return -945.f / (32.f * pi * kernel_radius) * a * a * dx;
+	float a = kernel_radius - d;
+	return a > 0 ? gradSpikyKernelC * a * a * dx / d : vec3(0);
 }
 
 ivec3 zindexToBlockPos(ivec3 zindex){
@@ -66,9 +67,6 @@ int blockPosToBlockID(ivec3 block_pos){
 
 }
 
-ivec3 blockIDToBlockPos(int block_id){
-
-}
 
 bool isInBlockDomain(ivec3 block_pos){
 	return 0 <= block_pos.x && block_pos.x < blocks_count.x &&
@@ -94,7 +92,7 @@ void main() {
 							if (p != cur_part_id){
 								float neighbor_pressure = pressure(densityBuffer[p]);
 								
-								vec3 grad_kernel = gradKernel(posBuffer[cur_part_id] - posBuffer[p]);
+								vec3 grad_kernel = gradSpikyKernel(posBuffer[cur_part_id] - posBuffer[p]);
 
 								pressure_force_acceleration += -particle_mass / (2.f * densityBuffer[cur_part_id] * densityBuffer[p]) * (cur_pressure + neighbor_pressure) * grad_kernel;
 							}
@@ -104,9 +102,6 @@ void main() {
 			}
 		}
 		vec3 gravity_acceleration = vec3(0.f, 0.f, -g);
-		//TODO boundary handling
-		vec3 boundary_acceleration;
-
-		velocityBuffer[cur_part_id] += pressure_force_acceleration + gravity_acceleration + boundary_acceleration;
+		velocityBuffer[cur_part_id] += dt * (pressure_force_acceleration + gravity_acceleration);
 	}
 }

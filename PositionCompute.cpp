@@ -57,7 +57,7 @@ void PositionCompute::createPipelines() {
 		});
 }
 
-vk::UniqueCommandBuffer PositionCompute::computeVelocities(VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer, PositionComputePushConstants push_constants) {
+vk::UniqueCommandBuffer PositionCompute::computePositions(VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer, PositionComputePushConstants push_constants) {
 	auto cmd_buf = createCommandBuffer();
 
 	cmd_buf->bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline_layout, 0, descriptor_sets.set, {});

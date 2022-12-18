@@ -21,6 +21,7 @@ VulkanContext::VulkanContext() {
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
     createVmaAllocator();
     createComputeCommandPool();
+    createGraphicsCommandPool();
 }
 
 VulkanContext::~VulkanContext() {
@@ -338,5 +339,10 @@ void VulkanContext::destroyVmaAllocator() {
 void VulkanContext::createComputeCommandPool() {
     vk::CommandPoolCreateInfo create_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, m_queues.indices.compute_family.value());
     m_compute_command_pool = m_device.createCommandPool(create_info);
+}
+
+void VulkanContext::createGraphicsCommandPool() {
+    vk::CommandPoolCreateInfo create_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, m_queues.indices.graphics_family.value());
+    m_graphics_command_pool = m_device.createCommandPool(create_info);
 }
 

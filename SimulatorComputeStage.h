@@ -19,7 +19,7 @@ protected:
     virtual void createDescriptorPool() = 0;
     void createDescriptorPool(u32 max_sets, std::map<vk::DescriptorType, u32> counts);
     virtual void createDescriptorSets() = 0;
-
+    0
     vk::UniqueCommandBuffer createCommandBuffer();
 
     vk::DescriptorPool m_descriptor_pool;
