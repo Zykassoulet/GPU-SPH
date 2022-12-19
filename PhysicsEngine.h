@@ -2,7 +2,6 @@
 
 #include "GPURadixSorter.h"
 #include "DensityCompute.h"
-#include "VelocityCompute.h"
 #include "PositionCompute.h"
 #include <array>
 #include "VulkanContext.h"
@@ -11,75 +10,53 @@
 #include "VulkanHelpers.h"
 #include "glm/glm.hpp"
 #include <vector>
-
-
-
-
-
-
-struct SimulationParameters {
-	u32 number_particles;
-	std::vector<glm::vec3> particles;
-	float kernel_radius;
-	float particle_radius;
-	float particle_mass;
-	float rest_density;
-	glm::vec3 box_size;
-	glm::vec3 initial_liquid_domain;
-	float blocks_size;
-	glm::ivec3 blocks_count;
-	float dt;
-	float k;
-};
+#include "SimulationParams.h"
+#include "ZIndexer.h"
+#include "Blocker.h"
+#include "Compactor.h"
+#include "DensityCompute.h"
+#include "ForceCompute.h"
 
 struct BlockData {
 	u32 number_particles;
 	u32 first_particles_offset;
 };
 
-
 struct PhysicsEngineBuffers {
-	VulkanBuffer input_pos_buf;
-	VulkanBuffer pos_buf;
-	VulkanBuffer zindex_buf;
-	VulkanBuffer vel_buf;
-	VulkanBuffer dens_buf;
-	VulkanBuffer block_buf;
+	VulkanBuffer input_position;
+	VulkanBuffer position[2];
+    VulkanBuffer velocity[2];
+    VulkanBuffer density;
+    VulkanBuffer pressure;
+    VulkanBuffer z_index;
+    VulkanBuffer particle_index;
+    VulkanBuffer sort_key_ping_pong;
+    VulkanBuffer sort_val_ping_pong;
+	VulkanBuffer uncompacted_block;
+    VulkanBuffer compacted_block;
+    VulkanBuffer dispatch_indirect;
 };
-
 
 class PhysicsEngine {
 
 public:
-	explicit PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context);
-    ~PhysicsEngine();
+	explicit PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context, SimulationParams sim_params, std::vector<glm::vec4> particles);
+    static std::pair<std::vector<glm::vec4>, SimulationParams> createSimulationParams();
 
     void step();
 
 private:
-    void initSimulationParameters();
-    void initBuffers();
+    void initBuffers(std::vector<glm::vec4>& particle_positions);
 
-    void initInputPosBuffer();
-    void initPosBuffer();
-    void initZIndexBuffer();
-    void initVelBuffer();
-    void initDensBuffer();
-    void initBlocksDataBuffer();
+	SimulationParams m_sim_params;
+	PhysicsEngineBuffers m_buffers;
+    u32 m_ping_pong_idx = 0;
 
-	void loadInitialPositions();
-
-	SimulationParameters sim_params;
-	PhysicsEngineBuffers buffers;
-
+    ZIndexer m_z_indexer;
 	GPURadixSorter m_radix_sorter;
-	DensityCompute density_compute;
-	VelocityCompute velocity_compute;
-	PositionCompute position_compute;
-
+    Blocker m_blocker;
+    Compactor m_compactor;
+    DensityCompute m_density_compute;
+    ForceCompute m_force_compute;
 	std::shared_ptr<VulkanContext> m_vk_context;
-
-
-	
-
 };

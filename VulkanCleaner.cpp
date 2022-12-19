@@ -7,8 +7,8 @@
 #include <ranges>
 
 VulkanCleaner::~VulkanCleaner() {
-    for (auto& deleter : std::ranges::reverse_view(m_deletion_queue)) {
-        deleter(m_vk_context);
+    for (int i = m_deletion_queue.size() - 1; i >= 0; i--) {
+        m_deletion_queue[i](m_vk_context);
     }
 }
 

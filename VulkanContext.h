@@ -121,7 +121,8 @@ private:
     friend class PhysicsEngine;
     friend class App;
     friend class DensityCompute;
-    friend class VelocityCompute;
-    friend class PositionCompute;
+    friend class ForceCompute;
+    friend class Blocker;
+    friend class Compactor;
     friend class Renderer;
 };

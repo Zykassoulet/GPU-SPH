@@ -5,131 +5,176 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <iostream>
 
-PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context) :
-    m_radix_sorter(vulkan_context, 1024),
-    density_compute(vulkan_context),
-    velocity_compute(vulkan_context),
-    position_compute(vulkan_context)
-{
-    m_vk_context = vulkan_context;
-	initSimulationParameters();
-	initBuffers();
-    loadInitialPositions();
+PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context, SimulationParams sim_params, std::vector<glm::vec4> particles) :
+        m_z_indexer(vulkan_context, sim_params.grid_size.x, sim_params.grid_size.y, sim_params.grid_size.z, sim_params.grid_unit),
+        m_radix_sorter(vulkan_context, sim_params.num_particles * 2),
+        m_blocker(vulkan_context),
+        m_compactor(vulkan_context),
+        m_density_compute(vulkan_context),
+        m_force_compute(vulkan_context),
+        m_vk_context(vulkan_context),
+        m_sim_params(sim_params),
+        m_ping_pong_idx(0) {
+	initBuffers(particles);
 }
 
-void PhysicsEngine::initSimulationParameters() {
-    sim_params.box_size = glm::vec3(1.f, 1.f, 1.f);
-    sim_params.initial_liquid_domain = glm::vec3(1.f, 0.5f, 1.f);
+std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulationParams() {
+    SimulationParams sim_params;
+    auto real_region_size = glm::vec3(1.f, 1.f, 1.f);
+    auto initial_liquid_region = glm::vec3(1.f, 0.5f, 1.f);
     sim_params.rest_density = 1000.f;
-    sim_params.k = sim_params.rest_density;
+    sim_params.stiffness = sim_params.rest_density;
     float initial_spacing = 0.05f;
-    sim_params.kernel_radius = 2.f * initial_spacing;
-    sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing,3);
+    sim_params.kernel_radius = 10.f * initial_spacing;
+    sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing, 3);
 
     std::array<float, 3> k_min{ 0.f, 0.f, 0.f };
-    std::array<float, 3> k_max = { sim_params.initial_liquid_domain.x, sim_params.initial_liquid_domain.y, sim_params.initial_liquid_domain.z };
+    std::array<float, 3> k_max = {initial_liquid_region.x, initial_liquid_region.y, initial_liquid_region.z };
     std::vector<std::array<float, 3>> poisson_sampling = thinks::PoissonDiskSampling(initial_spacing, k_min, k_max);
-	sim_params.number_particles = poisson_sampling.size();
-	sim_params.particles = std::vector<glm::vec3>(sim_params.number_particles);
-    std::transform(poisson_sampling.begin(), poisson_sampling.end(), sim_params.particles.begin(),
-        [](std::array<float, 3> coords) {return glm::vec3(coords[0], coords[1], coords[2]); }
+    sim_params.num_particles = poisson_sampling.size();
+
+    std::vector<glm::vec4> particles;
+    particles.resize(sim_params.num_particles);
+    std::transform(poisson_sampling.begin(), poisson_sampling.end(), particles.begin(),
+                   [](std::array<float, 3> coords) {return glm::vec4(coords[0], coords[1], coords[2], 0.0); }
     );
 
-    sim_params.blocks_size = sim_params.kernel_radius;
-    sim_params.blocks_count = glm::ivec3(
-        int(ceil(sim_params.box_size.x / sim_params.blocks_size)),
-        int(ceil(sim_params.box_size.y / sim_params.blocks_size)),
-        int(ceil(sim_params.box_size.z / sim_params.blocks_size))
+    float particle_volume = initial_liquid_region.x * initial_liquid_region.y * initial_liquid_region.z;
+    float particles_per_unit_volume = sim_params.num_particles / particle_volume;
+    u32 grid_units_per_real_unit = std::ceil(std::cbrt(particles_per_unit_volume / 256)) * 1.5;
+    sim_params.grid_unit = 1.0f / grid_units_per_real_unit;
+    sim_params.grid_size = glm::vec4(
+        std::ceil(real_region_size.x * grid_units_per_real_unit),
+        std::ceil(real_region_size.y * grid_units_per_real_unit),
+        std::ceil(real_region_size.z * grid_units_per_real_unit),
+        0
     );
 
-    sim_params.particle_radius = initial_spacing/2.f; //TO TWEAK
+    sim_params.block_size = (1 << (u32) std::ceil(std::log2((sim_params.kernel_radius / sim_params.grid_unit))));
+    sim_params.num_blocks = (sim_params.grid_size.x / sim_params.block_size + 1)
+                            * (sim_params.grid_size.y / sim_params.block_size + 1)
+                            * (sim_params.grid_size.z / sim_params.block_size + 1);
+
+    sim_params.gas_gamma = 1.0;
+    sim_params.particle_radius = initial_spacing/2.f;
     sim_params.dt = 0.01; //TO TWEAK
 
+    std::cout << sim_params.num_particles;
+
+    return {particles, sim_params};
 }
 
-void PhysicsEngine::initBuffers() {
-	initInputPosBuffer();
-	initPosBuffer();
-	initZIndexBuffer();
-	initVelBuffer();
-	initDensBuffer();
-	initBlocksDataBuffer();
-}
+void PhysicsEngine::initBuffers(std::vector<glm::vec4>& particle_positions) {
+    // Create buffers
+    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eStorageBuffer;
+    m_buffers.input_position = m_vk_context->createCPUAccessibleBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
 
-void PhysicsEngine::initInputPosBuffer() {
-	vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eStorageBuffer;
-	buffers.input_pos_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createCPUAccessibleBuffer(usage, sizeof(glm::vec3), sim_params.number_particles);
-}
+    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
+    m_buffers.position[0] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
+    m_buffers.position[1] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
 
-void PhysicsEngine::initPosBuffer() {
-	vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer;
-	buffers.pos_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(glm::vec3), sim_params.number_particles);
-}
+    m_buffers.velocity[0] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
+    m_buffers.velocity[1] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
 
-void PhysicsEngine::initZIndexBuffer() {
-    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer;
-	buffers.zindex_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(glm::ivec3), sim_params.number_particles);
-}
+    m_buffers.density = m_vk_context->createBuffer(usage, sizeof(f32), m_sim_params.num_particles);
+    m_buffers.pressure = m_vk_context->createBuffer(usage, sizeof(f32), m_sim_params.num_particles);
 
-void PhysicsEngine::initVelBuffer() {
-    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer;
-	buffers.vel_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(glm::vec3), sim_params.number_particles);
-}
+    m_buffers.z_index = m_vk_context->createBuffer(usage, sizeof(u32), m_sim_params.num_particles);
+    m_buffers.particle_index = m_vk_context->createBuffer(usage, sizeof(u32), m_sim_params.num_particles);
+    m_buffers.sort_key_ping_pong = m_vk_context->createBuffer(usage, sizeof(u32), m_sim_params.num_particles);
+    m_buffers.sort_val_ping_pong = m_vk_context->createBuffer(usage, sizeof(u32), m_sim_params.num_particles);
 
-void PhysicsEngine::initDensBuffer() {
-    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer;
-	buffers.dens_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(float), sim_params.number_particles);
-}
+    m_buffers.uncompacted_block = m_vk_context->createBuffer(usage, sizeof(BlockData), m_sim_params.num_blocks);
+    m_buffers.compacted_block = m_vk_context->createBuffer(usage, sizeof(BlockData), m_sim_params.num_blocks);
 
-void PhysicsEngine::initBlocksDataBuffer() {
-    vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eStorageBuffer;
-	buffers.dens_buf = std::shared_ptr<VulkanContext>(m_vk_context)->createBuffer(usage, sizeof(BlockData), sim_params.number_particles);
-}
+    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer;
+    m_buffers.dispatch_indirect = m_vk_context->createBuffer(usage, sizeof(vk::DispatchIndirectCommand), 1);
+    // Initialize buffers
+    m_buffers.input_position.store_data(particle_positions.data(), particle_positions.size());
 
-void PhysicsEngine::loadInitialPositions() {
-    buffers.input_pos_buf.store_data(sim_params.particles.data(), sim_params.particles.size());
-    vk::CommandBufferAllocateInfo primary_cmd_buf_alloc_info(m_vk_context->m_graphics_command_pool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::UniqueCommandBuffer cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(primary_cmd_buf_alloc_info).front());
+    vk::CommandBufferAllocateInfo cmd_buf_alloc_info(m_vk_context->m_compute_command_pool, vk::CommandBufferLevel::ePrimary, 1);
+    auto cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(cmd_buf_alloc_info).front());
     cmd_buf->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-    vk::BufferCopy copyInfo(0, 0, buffers.input_pos_buf.get_size());
-    cmd_buf->copyBuffer(buffers.input_pos_buf.get(), buffers.pos_buf.get(), copyInfo);
+    cmd_buf->copyBuffer(
+        m_buffers.input_position.get(),
+        m_buffers.position[0].get(),
+        vk::BufferCopy {0, 0, m_buffers.input_position.get_size()}
+    );
+    cmd_buf->fillBuffer(m_buffers.position[1].get(), 0, m_buffers.position[1].get_size(), 0u);
+    cmd_buf->fillBuffer(m_buffers.velocity[0].get(), 0, m_buffers.velocity[0].get_size(), 0u);
+    cmd_buf->fillBuffer(m_buffers.velocity[1].get(), 0, m_buffers.velocity[1].get_size(), 0u);
+    cmd_buf->fillBuffer(m_buffers.uncompacted_block.get(), 0, m_buffers.uncompacted_block.get_size(), 0u);
+    cmd_buf->fillBuffer(m_buffers.compacted_block.get(), 0, m_buffers.compacted_block.get_size(), 0u);
     cmd_buf->end();
-
     vk::SubmitInfo submit_info({}, {}, cmd_buf.get(), {});
     vk::Fence finish_fence = m_vk_context->m_device.createFence({});
     m_vk_context->m_queues.compute.submit(submit_info, finish_fence);
 
-    m_vk_context->m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
-}
+    auto _ = m_vk_context->m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
 
-
-PhysicsEngine::~PhysicsEngine() {
-    
 }
 
 
 
 
 void PhysicsEngine::step() {
-    std::vector<u32> data(256);
-    std::iota(data.begin(), data.end(), 0);
-    std::shuffle(data.begin(), data.end(), std::mt19937(std::random_device()()));
+    u32 next_ping_pong_idx = m_ping_pong_idx ^ 1;
 
-    VulkanBuffer key_buffer = m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), data.size());
-    VulkanBuffer key_ping_pong_buffer = m_vk_context->createBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), data.size());
-    VulkanBuffer value_buffer = m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), data.size());
-    VulkanBuffer value_ping_pong_buffer = m_vk_context->createBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), data.size());
+    auto z_index_cmd_buf = m_z_indexer.generateZIndices(m_buffers.position[m_ping_pong_idx],
+                                                        m_sim_params.num_particles,
+                                                        m_buffers.z_index,
+                                                        m_buffers.particle_index);
 
-    key_buffer.store_data(data.data(), data.size());
-    value_buffer.store_data(data.data(), data.size());
+    auto sort_cmd_buf = m_radix_sorter.sort(m_sim_params.num_particles,
+                                            m_buffers.z_index,
+                                            m_buffers.sort_key_ping_pong,
+                                            m_buffers.particle_index,
+                                            m_buffers.sort_val_ping_pong);
 
-    auto sort_cmd_buf = m_radix_sorter.sort(data.size(), key_buffer, key_ping_pong_buffer, value_buffer, value_ping_pong_buffer);
+    auto blocker_cmd_buf = m_blocker.computeBlocks(
+            m_sim_params,
+            m_buffers.z_index,
+            m_buffers.uncompacted_block);
+
+    auto compacter_cmd_buf = m_compactor.compactBlocks(m_sim_params,
+                                                       m_buffers.uncompacted_block,
+                                                       m_buffers.compacted_block,
+                                                       m_buffers.dispatch_indirect);
+
+    auto density_cmd_buf = m_density_compute.computeDensities(m_sim_params,
+                                                              m_buffers.z_index,
+                                                              m_buffers.particle_index,
+                                                              m_buffers.position[m_ping_pong_idx],
+                                                              m_buffers.density,
+                                                              m_buffers.pressure,
+                                                              m_buffers.compacted_block,
+                                                              m_buffers.uncompacted_block,
+                                                              m_buffers.dispatch_indirect);
+
+    auto force_cmd_buf = m_force_compute.computeVelocities(m_sim_params,
+                                                           m_buffers.z_index,
+                                                           m_buffers.particle_index,
+                                                           m_buffers.position[m_ping_pong_idx],
+                                                           m_buffers.density,
+                                                           m_buffers.velocity[m_ping_pong_idx],
+                                                           m_buffers.pressure,
+                                                           m_buffers.uncompacted_block,
+                                                           m_buffers.compacted_block,
+                                                           m_buffers.position[next_ping_pong_idx],
+                                                           m_buffers.velocity[next_ping_pong_idx],
+                                                           m_buffers.dispatch_indirect);
 
     vk::CommandBufferAllocateInfo primary_cmd_buf_alloc_info(m_vk_context->m_compute_command_pool, vk::CommandBufferLevel::ePrimary, 1);
     auto primary_cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(primary_cmd_buf_alloc_info).front());
     primary_cmd_buf->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    primary_cmd_buf->executeCommands(z_index_cmd_buf.get());
     primary_cmd_buf->executeCommands(sort_cmd_buf.get());
+    primary_cmd_buf->executeCommands(blocker_cmd_buf.get());
+    primary_cmd_buf->executeCommands(compacter_cmd_buf.get());
+    primary_cmd_buf->executeCommands(density_cmd_buf.get());
+    primary_cmd_buf->executeCommands(force_cmd_buf.get());
     primary_cmd_buf->end();
     vk::SubmitInfo submit_info({}, {}, primary_cmd_buf.get(), {});
     vk::Fence finish_fence = m_vk_context->m_device.createFence({});
@@ -137,5 +182,5 @@ void PhysicsEngine::step() {
 
     auto _ = m_vk_context->m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
 
-    key_buffer.load_data(data.data(), data.size());
+    m_ping_pong_idx = next_ping_pong_idx;
 }

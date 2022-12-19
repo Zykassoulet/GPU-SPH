@@ -12,6 +12,7 @@ class VulkanBuffer {
 public:
     VulkanBuffer() = default;
     VulkanBuffer(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, size_t object_size, size_t object_count, VmaAllocationCreateInfo alloc_info = {});
+    VulkanBuffer(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {});
 
 
     VulkanBuffer(const VulkanBuffer& other) = delete; // Disallow copying
@@ -31,8 +32,6 @@ public:
 
     template<typename T>
     void store_data(T* data, u32 count) {
-
-        assert(sizeof(T) == object_size && count <= object_count);
         void* mapped;
         vmaMapMemory(m_allocator, m_allocation, &mapped);
 
@@ -43,8 +42,6 @@ public:
 
     template<typename T>
     void load_data(T* data, u32 count) {
-
-        assert(sizeof(T) == object_size && count <= object_count);
         void* mapped;
         vmaMapMemory(m_allocator, m_allocation, &mapped);
 
@@ -67,3 +64,5 @@ vk::ShaderModule createShaderModuleFromFile(vk::Device& device, const std::strin
 
 vk::BufferMemoryBarrier
 bufferTransition(vk::Buffer buffer, vk::AccessFlags before, vk::AccessFlags after, u32 size);
+
+vk::BufferMemoryBarrier generalReadWriteBarrier(VulkanBuffer& buffer);
