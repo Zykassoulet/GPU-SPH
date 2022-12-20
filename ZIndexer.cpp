@@ -93,7 +93,7 @@ vk::UniqueCommandBuffer ZIndexer::generateZIndices(VulkanBuffer& particles, u32 
 
     std::array<vk::BufferMemoryBarrier, 3> barriers;
 
-    barriers[0] = bufferTransition(particles.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, num_particles * sizeof(Particle));
+    barriers[0] = bufferTransition(particles.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, particles.get_size());
     barriers[1] = bufferTransition(z_index_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, num_particles * sizeof(u32));
     barriers[2] = bufferTransition(particle_index_buffer.get(), vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite, num_particles * sizeof(u32));
 
@@ -183,7 +183,7 @@ void ZIndexer::writeInterleaveBuffersDescriptorSet() {
 void ZIndexer::writeParticleBuffersDescriptorSet(VulkanBuffer &particle_buffer, u32 num_particles,
                                                  VulkanBuffer &particle_index_buffer, VulkanBuffer &z_index_buffer) {
     auto buffers = std::array {
-            vk::DescriptorBufferInfo(particle_buffer.get(), 0, (u32) num_particles * sizeof(Particle)),
+            vk::DescriptorBufferInfo(particle_buffer.get(), 0, particle_buffer.get_size()),
             vk::DescriptorBufferInfo(z_index_buffer.get(), 0, (u32) num_particles * sizeof(u32)),
             vk::DescriptorBufferInfo(particle_index_buffer.get(), 0, (u32) num_particles * sizeof(u32)),
     };

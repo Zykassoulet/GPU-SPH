@@ -93,7 +93,7 @@ void ForceCompute::createPipelines() {
 }
 
 vk::UniqueCommandBuffer
-ForceCompute::computeVelocities(SimulationParams simulation_params, VulkanBuffer &z_index_buffer,
+ForceCompute::computeForces(SimulationParams simulation_params, VulkanBuffer &z_index_buffer,
                                 VulkanBuffer &particle_index_buffer, VulkanBuffer &position_buffer,
                                 VulkanBuffer &density_buffer, VulkanBuffer &velocity_buffer,
                                 VulkanBuffer &pressure_buffer, VulkanBuffer &uncompacted_blocks_buffer,
@@ -116,10 +116,12 @@ ForceCompute::computeVelocities(SimulationParams simulation_params, VulkanBuffer
 
     auto push_constants = ForceComputePushConstants {
         simulation_params.grid_size,
+        simulation_params.box_size,
         simulation_params.block_size,
         simulation_params.kernel_radius,
         simulation_params.particle_mass,
-        simulation_params.dt
+        simulation_params.dt,
+        simulation_params.particle_radius
     };
 	cmd_buf->pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, vk::ArrayProxy<const ForceComputePushConstants>(push_constants));
 

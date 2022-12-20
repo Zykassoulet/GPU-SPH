@@ -16,7 +16,9 @@ add_executable(project main.cpp
         DensityCompute.cpp
         ForceCompute.cpp
         Blocker.cpp
-        Compactor.cpp)
+        Compactor.cpp
+        InstanceRenderer.cpp
+        Mesh.cpp)
 
 find_package(Vulkan REQUIRED dxc)
 add_subdirectory(vendor)
@@ -30,10 +32,22 @@ function(compile_hlsl_shader SHADER_FILE SHADER_ENTRY_POINT)
     add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND ${Vulkan_dxc_EXECUTABLE} -spirv -fspv-target-env=vulkan1.1 -T cs_6_0 -E ${SHADER_ENTRY_POINT} ${PROJECT_SOURCE_DIR}/${SHADER_FILE} -Fo ${SHADER_OUTPUT_FILE})
 endfunction()
 
-function(compile_glsl_shader SHADER_FILE)
+function(compile_glsl_shader_comp SHADER_FILE)
     get_filename_component(SHADER_FILE_NAME ${SHADER_FILE} NAME_WE)
     set(SHADER_OUTPUT_FILE "${PROJECT_SOURCE_DIR}/${SHADER_BUILD_DIR}/${SHADER_FILE_NAME}.spv")
     add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND glslc -c -o ${SHADER_OUTPUT_FILE} ${PROJECT_SOURCE_DIR}/${SHADER_FILE})
+endfunction()
+
+function(compile_glsl_shader_frag SHADER_FILE)
+    get_filename_component(SHADER_FILE_NAME ${SHADER_FILE} NAME_WE)
+    set(SHADER_OUTPUT_FILE "${PROJECT_SOURCE_DIR}/${SHADER_BUILD_DIR}/${SHADER_FILE_NAME}.spv")
+    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND glslc -c -fshader-stage=fragment -o ${SHADER_OUTPUT_FILE} ${PROJECT_SOURCE_DIR}/${SHADER_FILE})
+endfunction()
+
+function(compile_glsl_shader_vert SHADER_FILE)
+    get_filename_component(SHADER_FILE_NAME ${SHADER_FILE} NAME_WE)
+    set(SHADER_OUTPUT_FILE "${PROJECT_SOURCE_DIR}/${SHADER_BUILD_DIR}/${SHADER_FILE_NAME}.spv")
+    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND glslc -c -fshader-stage=vertex -o ${SHADER_OUTPUT_FILE} ${PROJECT_SOURCE_DIR}/${SHADER_FILE})
 endfunction()
 
 compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_Count)
@@ -41,8 +55,10 @@ compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_CountReduce)
 compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_Scan)
 compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_ScanAdd)
 compile_hlsl_shader(shaders/radixsort/ParallelSortCS.hlsl FPS_Scatter)
-compile_glsl_shader(shaders/z_indexer/z_indexer.glsl)
-compile_glsl_shader(shaders/physics_engine/density.glsl)
-compile_glsl_shader(shaders/physics_engine/forces.glsl)
-compile_glsl_shader(shaders/blocker/blocker.glsl)
-compile_glsl_shader(shaders/blocker/compactor.glsl)
+compile_glsl_shader_comp(shaders/z_indexer/z_indexer.glsl)
+compile_glsl_shader_comp(shaders/physics_engine/density.glsl)
+compile_glsl_shader_comp(shaders/physics_engine/forces.glsl)
+compile_glsl_shader_comp(shaders/blocker/blocker.glsl)
+compile_glsl_shader_comp(shaders/blocker/compactor.glsl)
+compile_glsl_shader_frag(shaders/render/instance_renderer_frag.glsl)
+compile_glsl_shader_vert(shaders/render/instance_renderer_vert.glsl)

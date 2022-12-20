@@ -2,7 +2,6 @@
 
 #include "utils.h"
 #include "VulkanContext.h"
-#include "particle.h"
 #include "SimulatorComputeStage.h"
 
 #include <vector>

@@ -2,7 +2,6 @@
 
 #include "GPURadixSorter.h"
 #include "DensityCompute.h"
-#include "PositionCompute.h"
 #include <array>
 #include "VulkanContext.h"
 #include "utils.h"
@@ -45,6 +44,9 @@ public:
 
     void step();
 
+    inline SimulationParams getSimulationParams() { return m_sim_params; }
+    inline VulkanBuffer& getPositionBuffer() { return m_buffers.position[m_ping_pong_idx]; }
+
 private:
     void initBuffers(std::vector<glm::vec4>& particle_positions);
 
@@ -59,4 +61,5 @@ private:
     DensityCompute m_density_compute;
     ForceCompute m_force_compute;
 	std::shared_ptr<VulkanContext> m_vk_context;
+
 };

@@ -1,8 +1,13 @@
 #version 430
 #pragma shader_stage(compute)
-#include "../../particle.h"
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle {
+    float pos_x;
+    float pos_y;
+    float pos_z;
+};
 
 layout(std430, set = 0, binding = 0) readonly buffer ParticleBuffer {
     Particle particle_buffer[];

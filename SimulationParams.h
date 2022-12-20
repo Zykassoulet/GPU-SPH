@@ -16,4 +16,5 @@ struct SimulationParams {
     f32 grid_unit;      //
     glm::ivec4 grid_size;//
     f32 particle_radius;
+    glm::vec4 box_size;
 };

@@ -82,13 +82,12 @@ ParticleInfo fetchCurrentParticle(Block current_block, uint particle_offset) {
 	return particle;
 }
 
-float kernel(float r){
+float poly6KernelC = 315. / (64. * pi * pow(kernel_radius, 9));
+float poly6Kernel(float d_2){
 	float h_2 = kernel_radius * kernel_radius;
-	float h_3 = h_2 * kernel_radius;
-	float r_2 = r * r;
-	float a = (h_2 - r_2) / h_3;
-	float res = 315./(64.*pi) * a * a * a;
-	return r < kernel_radius ? res : 0;
+	float a = h_2 - d_2;
+	float res = poly6KernelC * a * a * a;
+	return d_2 < h_2 ? res : 0;
 }
 
 uint deinterleave(uint value, uint offset, uint spacing) {
@@ -149,7 +148,8 @@ void main() {
 				if (current_particle.valid) {
 					for (int o = 0; o < 256; o++) {
 						if (sParticles[o].valid) {
-							local_density += particle_mass * kernel(length(sParticles[o].position - current_particle.position));
+							vec4 dx = sParticles[o].position - current_particle.position;
+							local_density += particle_mass * poly6Kernel(dot(dx, dx));
 						}
 					}
 				}

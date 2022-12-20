@@ -2,7 +2,6 @@
 
 #include "utils.h"
 #include "VulkanContext.h"
-#include "particle.h"
 #include "SimulatorComputeStage.h"
 
 #include <vector>
@@ -29,10 +28,12 @@ struct VelocityComputeDescriptorSets {
 
 struct ForceComputePushConstants {
     glm::ivec4 simulation_domain;
+    glm::vec4 box_size;
     u32 block_size;
     f32 kernel_radius;
     f32 particle_mass;
     f32 dt;
+    f32 particle_radius;
 };
 
 
@@ -41,7 +42,7 @@ public:
 	ForceCompute(std::shared_ptr<VulkanContext> vulkan_context);
 
 
-	vk::UniqueCommandBuffer computeVelocities(SimulationParams simulation_params, VulkanBuffer &z_index_buffer,
+	vk::UniqueCommandBuffer computeForces(SimulationParams simulation_params, VulkanBuffer &z_index_buffer,
                                               VulkanBuffer &particle_index_buffer, VulkanBuffer &position_buffer,
                                               VulkanBuffer &density_buffer, VulkanBuffer &velocity_buffer,
                                               VulkanBuffer &pressure_buffer, VulkanBuffer &uncompacted_blocks_buffer,

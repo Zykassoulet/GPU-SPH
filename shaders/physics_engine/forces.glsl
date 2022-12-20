@@ -7,10 +7,12 @@ layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(std140, push_constant) uniform DensityComputePushConstants {
 	ivec4 simulation_domain; // In Z-index space (real space/grid spacing)
+	vec4 box_size;
 	uint block_size; // In Z-index space (real space/grid spacing)
 	float kernel_radius;
 	float particle_mass;
 	float dt;
+	float particle_radius;
 };
 
 layout(set = 0, binding = 0) readonly buffer ZIndexBuffer {
@@ -101,11 +103,11 @@ ParticleInfo fetchCurrentParticle(Block current_block, uint particle_offset) {
 	return particle;
 }
 
-vec4 gradKernel(vec4 dx){
+float gradSpikyKernelC = -45.f / (pi * pow(kernel_radius,6));
+vec4 gradSpikyKernel(vec4 dx){
 	float d = length(dx);
-	float h_2 = kernel_radius * kernel_radius;
-	float a = (h_2- d * d)/(h_2 * h_2);
-	return -945.f / (32.f * pi * kernel_radius) * a * a * dx;
+	float a = kernel_radius - d;
+	return a > 0 ? gradSpikyKernelC * a * a * dx / d : vec4(0);
 }
 
 uint deinterleave(uint value, uint offset, uint spacing) {
@@ -124,6 +126,27 @@ uint interleave(uint value, uint offset, uint spacing) {
 		o |= (((value & (1u << i)) != 0 ? 1u : 0u) << bit);
 	}
 	return o;
+}
+
+vec4 handleBoundariesPos(vec4 pos){
+	
+	pos.x = particle_radius + abs(pos.x - particle_radius);
+	pos.x = box_size.x - particle_radius - abs(box_size.x - particle_radius - pos.x);
+	pos.y = particle_radius + abs(pos.y - particle_radius);
+	pos.y = box_size.y - particle_radius - abs(box_size.y - particle_radius - pos.y);
+	pos.z = particle_radius + abs(pos.z - particle_radius);
+	pos.z = box_size.z - particle_radius - abs(box_size.z - particle_radius - pos.z);
+	return pos;
+}
+
+vec4 handleBoundariesVel(vec4 pos, vec4 vel){
+	vel.x = sign(pos.x - particle_radius) * vel.x;
+	vel.x = sign(box_size.x - particle_radius - pos.x) * vel.x;
+	vel.y = sign(pos.y - particle_radius) * vel.y;
+	vel.y = sign(box_size.y - particle_radius - pos.y) * vel.y;
+	vel.z = sign(pos.z - particle_radius) * vel.z;
+	vel.z = sign(box_size.z - particle_radius - pos.z) * vel.z;
+	return vel;
 }
 
 int getNeighborBlockIndex(Block block, ivec3 offset) {
@@ -168,7 +191,7 @@ void main() {
 						if (sParticles[o].valid) {
 							force -= (particle_mass/sParticles[o].density)
 									* (current_particle.pressure + sParticles[o].pressure)/2.0
-									* gradKernel(current_particle.position - sParticles[o].position);
+									* gradSpikyKernel(current_particle.position - sParticles[o].position);
 						}
 					}
 				}
@@ -178,12 +201,13 @@ void main() {
 
 	force += particle_mass * vec4(0, 0, -9.81, 0); // Gravity
 
-	// TODO: boundary forces
-
 	uint global_particle_index = getGlobalParticleIndex(current_block, particle_index);
 	if (current_particle.valid) {
 		vec4 velocity = velocity_buffer[global_particle_index] + dt * force/particle_mass;
 		vec4 position = position_buffer[global_particle_index] + dt * velocity;
+		velocity = handleBoundariesVel(position, velocity);
+		position = handleBoundariesPos(position);
+
 		out_velocity_buffer[global_particle_index] = velocity;
 		out_position_buffer[global_particle_index] = position;
 	}

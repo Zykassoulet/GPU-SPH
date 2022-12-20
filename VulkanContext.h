@@ -56,6 +56,7 @@ private:
 
     inline static const std::vector<const char*> device_extensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME
      //       VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME,
      //       VK_GOOGLE_USER_TYPE_EXTENSION_NAME
     };
@@ -87,6 +88,8 @@ private:
     vk::Extent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     void createSwapchain();
 
+    void createImageViews();
+
 
     VulkanBuffer createBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count = 1, VmaAllocationCreateInfo alloc_info = {});
     VulkanBuffer createCPUAccessibleBuffer(vk::BufferUsageFlags usage, const u32 object_size, const u32 object_count = 1);
@@ -107,7 +110,11 @@ private:
     QueueFamilyIndices m_queue_family_indices;
     Queues m_queues;
     GLFWwindow* m_window;
+    vk::Extent2D m_window_extent;
+    vk::Format m_swapchain_image_format;
     vk::SurfaceKHR m_surface;
+    std::vector<vk::Image> m_swapchain_images;
+    std::vector<vk::ImageView> m_swapchain_image_views;
     vk::SwapchainKHR m_swapchain;
     vk::PhysicalDevice m_physical_device;
     vk::CommandPool m_compute_command_pool;
@@ -124,5 +131,6 @@ private:
     friend class ForceCompute;
     friend class Blocker;
     friend class Compactor;
-    friend class Renderer;
+    friend class InstanceRenderer;
+    friend class Mesh;
 };

@@ -23,11 +23,12 @@ PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context, Simu
 std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulationParams() {
     SimulationParams sim_params;
     auto real_region_size = glm::vec3(1.f, 1.f, 1.f);
+    sim_params.box_size = glm::vec4(real_region_size, 0);
     auto initial_liquid_region = glm::vec3(1.f, 0.5f, 1.f);
     sim_params.rest_density = 1000.f;
     sim_params.stiffness = sim_params.rest_density;
     float initial_spacing = 0.05f;
-    sim_params.kernel_radius = 10.f * initial_spacing;
+    sim_params.kernel_radius = 0.1f * initial_spacing;
     sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing, 3);
 
     std::array<float, 3> k_min{ 0.f, 0.f, 0.f };
@@ -153,7 +154,7 @@ void PhysicsEngine::step() {
                                                               m_buffers.uncompacted_block,
                                                               m_buffers.dispatch_indirect);
 
-    auto force_cmd_buf = m_force_compute.computeVelocities(m_sim_params,
+    auto force_cmd_buf = m_force_compute.computeForces(m_sim_params,
                                                            m_buffers.z_index,
                                                            m_buffers.particle_index,
                                                            m_buffers.position[m_ping_pong_idx],
