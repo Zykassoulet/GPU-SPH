@@ -1,5 +1,6 @@
 #version 460
 #pragma shader_stage(compute)
+#extension GL_EXT_debug_printf : enable
 
 #define pi 3.141592653589793238
 

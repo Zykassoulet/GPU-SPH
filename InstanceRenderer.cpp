@@ -47,7 +47,7 @@ void InstanceRenderer::createPipelineLayouts() {
     vk::PushConstantRange constant_range(vk::ShaderStageFlagBits::eVertex, 0, sizeof(InstanceRendererPushConstants));
 
 
-    vk::PipelineLayoutCreateInfo layout_create_info({}, descriptor_sets.layout, constant_range);
+    vk::PipelineLayoutCreateInfo layout_create_info({}, {}, constant_range);
     pipeline_layout = m_vk_context->m_device.createPipelineLayout(layout_create_info);
     deferDelete([layout = pipeline_layout](auto m_vk_context) {
         m_vk_context->m_device.destroyPipelineLayout(layout);
@@ -96,9 +96,17 @@ void InstanceRenderer::createPipelines() {
     auto shader_stages_info = std::array{ shader_stage_vert_create_info, shader_stage_frag_create_info };
 
 
-    vk::VertexInputBindingDescription binding_description(0, sizeof(Vertex), vk::VertexInputRate::eInstance);
+    vk::VertexInputBindingDescription binding_description(0, sizeof(Vertex), vk::VertexInputRate::eVertex);
+    vk::VertexInputBindingDescription particle_pos_binding_description(1, sizeof(glm::vec4), vk::VertexInputRate::eInstance);
     auto attribute_description = Vertex::getVertexInputDescriptions(0);
-    vk::PipelineVertexInputStateCreateInfo vertex_input_state_info({}, binding_description, attribute_description);
+    attribute_description.push_back(vk::VertexInputAttributeDescription(1, 1, vk::Format::eR32G32B32A32Sfloat, 0));
+
+    auto binding_descriptions = std::array{
+        binding_description,
+        particle_pos_binding_description
+    };
+    
+    vk::PipelineVertexInputStateCreateInfo vertex_input_state_info({}, binding_descriptions, attribute_description);
 
     vk::PipelineInputAssemblyStateCreateInfo input_assembly_state_info({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
 
@@ -179,9 +187,6 @@ void InstanceRenderer::createMesh() {
 
 void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& position_buffer) {
 
-    writeBufferDescriptorSets(position_buffer);
-
-
     m_vk_context->m_device.resetFences(finish_fence);
 
     auto result = m_vk_context->m_device.acquireNextImageKHR(m_vk_context->m_swapchain, std::numeric_limits<u64>::max(), present_semaphore);
@@ -198,8 +203,6 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
 
     cmd_buf->beginRenderPass(rp_begin_info, vk::SubpassContents::eInline);
 
-    cmd_buf->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, descriptor_sets.set, {});
-
     auto push_constants = InstanceRendererPushConstants{
         simulation_params.particle_radius
     };
@@ -215,12 +218,11 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
 
     vk::DeviceSize offset = 0;
 
-    cmd_buf->bindVertexBuffers(0, triangle.getBuffer(), offset);
-
+    cmd_buf->bindVertexBuffers(0, { triangle.getBuffer(), position_buffer.get() }, { offset, offset });
 
     cmd_buf->draw(3, 
-        1,
-    //    simulation_params.num_particles,
+    //    1,
+        simulation_params.num_particles,
         0, 0);
 
 

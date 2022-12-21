@@ -59,9 +59,9 @@ void ZIndexer::createLookupBuffers() {
             m_vk_context->createCPUAccessibleBuffer(vk::BufferUsageFlagBits::eStorageBuffer, sizeof(u32), z_data.size()),
     };
 
-    buffers.x_lookup.load_data(x_data.data(), x_data.size());
-    buffers.y_lookup.load_data(y_data.data(), y_data.size());
-    buffers.z_lookup.load_data(z_data.data(), z_data.size());
+    buffers.x_lookup.store_data(x_data.data(), x_data.size());
+    buffers.y_lookup.store_data(y_data.data(), y_data.size());
+    buffers.z_lookup.store_data(z_data.data(), z_data.size());
 
     m_lookup_buffers = std::move(buffers);
 }

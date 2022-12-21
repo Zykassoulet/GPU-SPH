@@ -28,7 +28,7 @@ std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulat
     sim_params.rest_density = 1000.f;
     sim_params.stiffness = sim_params.rest_density;
     float initial_spacing = 0.05f;
-    sim_params.kernel_radius = 0.1f * initial_spacing;
+    sim_params.kernel_radius = 2. * initial_spacing;
     sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing, 3);
 
     std::array<float, 3> k_min{ 0.f, 0.f, 0.f };
@@ -42,10 +42,16 @@ std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulat
                    [](std::array<float, 3> coords) {return glm::vec4(coords[0], coords[1], coords[2], 0.0); }
     );
 
-    float particle_volume = initial_liquid_region.x * initial_liquid_region.y * initial_liquid_region.z;
-    float particles_per_unit_volume = sim_params.num_particles / particle_volume;
-    u32 grid_units_per_real_unit = std::ceil(std::cbrt(particles_per_unit_volume / 256)) * 1.5;
-    sim_params.grid_unit = 1.0f / grid_units_per_real_unit;
+
+    f32 max_size_dimension_size = std::max(real_region_size.x, std::max(real_region_size.y, real_region_size.z));
+    u32 d = (u32)std::floor(std::log2(max_size_dimension_size / sim_params.kernel_radius));
+    sim_params.block_size = max_size_dimension_size / (1 << d);
+
+
+    //float particle_volume = initial_liquid_region.x * initial_liquid_region.y * initial_liquid_region.z;
+    //float particles_per_unit_fluid_volume = sim_params.num_particles / particle_volume;
+    //u32 grid_units_per_real_unit = std::ceil(std::cbrt(particles_per_unit_volume / 256)) * 1.5;
+    //sim_params.grid_unit = sim_params.kernel_radius / 10.;// 1.0f / grid_units_per_real_unit;
     sim_params.grid_size = glm::vec4(
         std::ceil(real_region_size.x * grid_units_per_real_unit),
         std::ceil(real_region_size.y * grid_units_per_real_unit),
@@ -53,7 +59,7 @@ std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulat
         0
     );
 
-    sim_params.block_size = (1 << (u32) std::ceil(std::log2((sim_params.kernel_radius / sim_params.grid_unit))));
+    //sim_params.block_size = (1 << (u32) std::ceil(std::log2((sim_params.kernel_radius / sim_params.grid_unit))));
     sim_params.num_blocks = (sim_params.grid_size.x / sim_params.block_size + 1)
                             * (sim_params.grid_size.y / sim_params.block_size + 1)
                             * (sim_params.grid_size.z / sim_params.block_size + 1);
@@ -72,9 +78,11 @@ void PhysicsEngine::initBuffers(std::vector<glm::vec4>& particle_positions) {
     vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eStorageBuffer;
     m_buffers.input_position = m_vk_context->createCPUAccessibleBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
 
-    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
+    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer;
     m_buffers.position[0] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
     m_buffers.position[1] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
+
+    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
 
     m_buffers.velocity[0] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
     m_buffers.velocity[1] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
