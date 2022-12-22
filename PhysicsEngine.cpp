@@ -24,11 +24,11 @@ std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulat
     SimulationParams sim_params;
     auto real_region_size = glm::vec3(1.f, 1.f, 1.f);
     sim_params.box_size = glm::vec4(real_region_size, 0);
-    auto initial_liquid_region = glm::vec3(1.f, 0.5f, 1.f);
+    auto initial_liquid_region = glm::vec3(1.f, 1.f, 1.f);
     sim_params.rest_density = 1000.f;
     sim_params.stiffness = sim_params.rest_density;
-    float initial_spacing = 0.05f;
-    sim_params.kernel_radius = 2. * initial_spacing;
+    float initial_spacing = 0.08f;
+    sim_params.kernel_radius = 5. * initial_spacing;
     sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing, 3);
 
     std::array<float, 3> k_min{ 0.f, 0.f, 0.f };
@@ -43,32 +43,16 @@ std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulat
     );
 
 
-    f32 max_size_dimension_size = std::max(real_region_size.x, std::max(real_region_size.y, real_region_size.z));
-    u32 d = (u32)std::floor(std::log2(max_size_dimension_size / sim_params.kernel_radius));
-    sim_params.block_size = max_size_dimension_size / (1 << d);
-
-
-    //float particle_volume = initial_liquid_region.x * initial_liquid_region.y * initial_liquid_region.z;
-    //float particles_per_unit_fluid_volume = sim_params.num_particles / particle_volume;
-    //u32 grid_units_per_real_unit = std::ceil(std::cbrt(particles_per_unit_volume / 256)) * 1.5;
-    //sim_params.grid_unit = sim_params.kernel_radius / 10.;// 1.0f / grid_units_per_real_unit;
-    sim_params.grid_size = glm::vec4(
-        std::ceil(real_region_size.x * grid_units_per_real_unit),
-        std::ceil(real_region_size.y * grid_units_per_real_unit),
-        std::ceil(real_region_size.z * grid_units_per_real_unit),
-        0
-    );
-
-    //sim_params.block_size = (1 << (u32) std::ceil(std::log2((sim_params.kernel_radius / sim_params.grid_unit))));
-    sim_params.num_blocks = (sim_params.grid_size.x / sim_params.block_size + 1)
-                            * (sim_params.grid_size.y / sim_params.block_size + 1)
-                            * (sim_params.grid_size.z / sim_params.block_size + 1);
+    sim_params.grid_size = glm::ivec4(1024, 1024, 1024, 0);
+    sim_params.grid_unit = 1.0/1024.0;
+    sim_params.block_size = std::max(1u, (1u << (u32) std::ceil(std::log2(sim_params.kernel_radius / sim_params.grid_unit))));
+    sim_params.num_blocks = 2 * (sim_params.grid_size.x/sim_params.block_size) * (sim_params.grid_size.y/sim_params.block_size) * (sim_params.grid_size.z/sim_params.block_size);
 
     sim_params.gas_gamma = 1.0;
     sim_params.particle_radius = initial_spacing/2.f;
     sim_params.dt = 0.01; //TO TWEAK
 
-    std::cout << sim_params.num_particles;
+    std::cout << "Number of particles: " << sim_params.num_particles << std::endl;
 
     return {particles, sim_params};
 }

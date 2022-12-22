@@ -119,6 +119,9 @@ private:
     vk::PhysicalDevice m_physical_device;
     vk::CommandPool m_compute_command_pool;
     vk::CommandPool m_graphics_command_pool;
+    VulkanImage m_depth_image;
+    vk::ImageView m_depth_image_view;
+    vk::Format m_depth_format;
 
     void destroyVmaAllocator();
 

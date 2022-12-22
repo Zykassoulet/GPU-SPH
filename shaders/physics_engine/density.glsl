@@ -60,12 +60,13 @@ uint getGlobalParticleIndex(Block block, uint particle_offset) {
 	return particle_index_buffer[particle_index_buffer_index];
 }
 
-void fetchParticle(uint source_block_index, uint particle_offset) {
+void fetchParticle(uint source_block_index, uint particle_offset, uint block_offset) {
 	Block source_block = uncompacted_block_buffer[source_block_index];
-	uint global_particle_index = getGlobalParticleIndex(source_block, particle_offset);
+	uint particle_index = block_offset + particle_offset;
+	uint global_particle_index = getGlobalParticleIndex(source_block, particle_index);
 
-	sParticles[particle_offset].valid = (particle_offset < source_block.num_particles);
-	if ((particle_offset < source_block.num_particles)) {
+	sParticles[particle_offset].valid = (particle_index < source_block.num_particles);
+	if ((particle_index < source_block.num_particles)) {
 		sParticles[particle_offset].position = position_buffer[global_particle_index];
 	}
 }
@@ -140,16 +141,19 @@ void main() {
 			for (int k = -1; k <= 1; k++){
 				int neighbor_block_index = getNeighborBlockIndex(current_block, ivec3(i,j,k));
 				if (neighbor_block_index != -1) {
-					fetchParticle(uint(neighbor_block_index), particle_index);
-				}
+					uint neighbor_num_particles = uncompacted_block_buffer[neighbor_block_index].num_particles;
+					for (uint block_offset = 0; block_offset < neighbor_num_particles; block_offset += 256) {
+						fetchParticle(uint(neighbor_block_index), particle_index, block_offset);
 
-				barrier();
+						barrier();
 
-				if (current_particle.valid) {
-					for (int o = 0; o < 256; o++) {
-						if (sParticles[o].valid) {
-							vec4 dx = sParticles[o].position - current_particle.position;
-							local_density += particle_mass * poly6Kernel(dot(dx, dx));
+						if (current_particle.valid) {
+							for (int o = 0; o < 256; o++) {
+								if (sParticles[o].valid) {
+									vec4 dx = sParticles[o].position - current_particle.position;
+									local_density += particle_mass * poly6Kernel(dot(dx, dx));
+								}
+							}
 						}
 					}
 				}

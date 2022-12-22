@@ -332,8 +332,27 @@ void VulkanContext::createSwapchain() {
     swapchain_info.clipped = VK_FALSE;
     m_swapchain = m_device.createSwapchainKHR(swapchain_info);
 
-    m_swapchain_images = m_device.getSwapchainImagesKHR(m_swapchain); 
+    m_swapchain_images = m_device.getSwapchainImagesKHR(m_swapchain);
 
+    vk::Extent3D depth_image_extent = {
+            m_window_extent.width,
+            m_window_extent.height,
+            1
+    };
+
+    m_depth_format = vk::Format::eD32Sfloat;
+
+    auto depth_image_create_info = VulkanImage::create_info(m_depth_format, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_image_extent);
+    VmaAllocationCreateInfo depth_image_alloc_info = {};
+    depth_image_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    depth_image_alloc_info.requiredFlags = static_cast<VkMemoryPropertyFlags>(vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+    vmaCreateImage(m_allocator, reinterpret_cast<const VkImageCreateInfo *>(&depth_image_create_info), &depth_image_alloc_info,
+                   reinterpret_cast<VkImage *>(&m_depth_image.image), &m_depth_image.allocation, nullptr);
+
+    auto depth_image_view_create_info = VulkanImage::view_create_info(m_depth_format, m_depth_image.image, vk::ImageAspectFlagBits::eDepth);
+
+    m_depth_image_view = m_device.createImageView(depth_image_view_create_info);
 }
 
 void VulkanContext::createImageViews() {

@@ -45,7 +45,7 @@ public:
     void step();
 
     inline SimulationParams getSimulationParams() { return m_sim_params; }
-    inline VulkanBuffer& getPositionBuffer() { return m_buffers.position[m_ping_pong_idx]; }
+    inline VulkanBuffer& getLastPositionBuffer() { return m_buffers.position[m_ping_pong_idx]; }
 
 private:
     void initBuffers(std::vector<glm::vec4>& particle_positions);

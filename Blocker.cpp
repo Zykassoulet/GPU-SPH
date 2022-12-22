@@ -50,6 +50,14 @@ void Blocker::createPipelines() {
     deferDelete([pipeline = m_pipeline](auto vk_context) {
         vk_context->m_device.destroyPipeline(pipeline);
     });
+
+    vk::ShaderModule clear_shader_module = createShaderModuleFromFile(m_vk_context->m_device, "shaders/build/block_buffer_clear.spv");
+    vk::PipelineShaderStageCreateInfo clear_shader_stage_create_info({}, vk::ShaderStageFlagBits::eCompute, clear_shader_module, "main", {});
+    vk::ComputePipelineCreateInfo clear_create_info({}, clear_shader_stage_create_info, m_pipeline_layout, {}, {});
+    m_clear_pipeline = m_vk_context->m_device.createComputePipeline({}, clear_create_info).value;
+    deferDelete([pipeline = m_clear_pipeline](auto vk_context) {
+        vk_context->m_device.destroyPipeline(pipeline);
+    });
 }
 
 vk::UniqueCommandBuffer Blocker::computeBlocks(SimulationParams &simulation_params, VulkanBuffer &z_index_buffer,
@@ -69,6 +77,12 @@ vk::UniqueCommandBuffer Blocker::computeBlocks(SimulationParams &simulation_para
         generalReadWriteBarrier(z_index_buffer),
         generalReadWriteBarrier(uncompacted_block_buffer)
     };
+
+    cmd_buf->bindPipeline(vk::PipelineBindPoint::eCompute, m_clear_pipeline);
+
+    cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
+
+    cmd_buf->dispatch(simulation_params.num_blocks / 256 + 1, 1, 1);
 
     cmd_buf->bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline);
 

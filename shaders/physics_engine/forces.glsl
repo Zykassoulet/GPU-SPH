@@ -45,19 +45,19 @@ struct Block {
 	uint num_particles;
 };
 
-layout(std140, set = 1, binding = 0) readonly buffer UncompactedBlockBuffer {
+layout(std430, set = 1, binding = 0) readonly buffer UncompactedBlockBuffer {
 	Block uncompacted_block_buffer[];
 };
 
-layout(std140, set = 1, binding = 1) readonly buffer CompactedBlockBuffer {
+layout(std430, set = 1, binding = 1) readonly buffer CompactedBlockBuffer {
 	Block compacted_block_buffer[];
 };
 
-layout(std140, set = 2, binding = 0) writeonly buffer OutPosBuffer {
+layout(set = 2, binding = 0) writeonly buffer OutPosBuffer {
 	vec4 out_position_buffer[];
 };
 
-layout(std140, set = 2, binding = 1) writeonly buffer OutVelocityBuffer {
+layout(set = 2, binding = 1) writeonly buffer OutVelocityBuffer {
 	vec4 out_velocity_buffer[];
 };
 
@@ -76,12 +76,13 @@ uint getGlobalParticleIndex(Block block, uint particle_offset) {
 	return particle_index_buffer[particle_index_buffer_index];
 }
 
-void fetchParticle(uint source_block_index, uint particle_offset) {
+void fetchParticle(uint source_block_index, uint particle_offset, uint block_offset) {
 	Block source_block = uncompacted_block_buffer[source_block_index];
-	uint global_particle_index = getGlobalParticleIndex(source_block, particle_offset);
+	uint particle_index = block_offset + particle_offset;
+	uint global_particle_index = getGlobalParticleIndex(source_block, particle_index);
 
-	sParticles[particle_offset].valid = (particle_offset < source_block.num_particles);
-	if ((particle_offset < source_block.num_particles)) {
+	sParticles[particle_offset].valid = (particle_index < source_block.num_particles);
+	if ((particle_index < source_block.num_particles)) {
 		sParticles[particle_offset].position = position_buffer[global_particle_index];
 		sParticles[particle_offset].density = density_buffer[global_particle_index];
 		sParticles[particle_offset].velocity = velocity_buffer[global_particle_index];
@@ -108,6 +109,8 @@ float gradSpikyKernelC = -45.f / (pi * pow(kernel_radius,6));
 vec4 gradSpikyKernel(vec4 dx){
 	float d = length(dx);
 	float a = kernel_radius - d;
+	if (d == 0.0)
+		return vec4(0);
 	return a > 0 ? gradSpikyKernelC * a * a * dx / d : vec4(0);
 }
 
@@ -182,17 +185,20 @@ void main() {
 			for (int k = -1; k <= 1; k++){
 				int neighbor_block_index = getNeighborBlockIndex(current_block, ivec3(i,j,k));
 				if (neighbor_block_index != -1) {
-					fetchParticle(uint(neighbor_block_index), particle_index);
-				}
+					uint neighbor_num_particles = uncompacted_block_buffer[neighbor_block_index].num_particles;
+					for (uint block_offset = 0; block_offset < neighbor_num_particles; block_offset += 256) {
+						fetchParticle(uint(neighbor_block_index), particle_index, block_offset);
 
-				barrier();
+						barrier();
 
-				if (current_particle.valid) {
-					for (int o = 0; o < 256; o++) {
-						if (sParticles[o].valid) {
-							force -= (particle_mass/sParticles[o].density)
+						if (current_particle.valid) {
+							for (int o = 0; o < 256; o++) {
+								if (sParticles[o].valid) {
+									force -= (particle_mass/sParticles[o].density)
 									* (current_particle.pressure + sParticles[o].pressure)/2.0
 									* gradSpikyKernel(current_particle.position - sParticles[o].position);
+								}
+							}
 						}
 					}
 				}
@@ -208,6 +214,8 @@ void main() {
 		vec4 position = position_buffer[global_particle_index] + dt * velocity;
 		velocity = handleBoundariesVel(position, velocity);
 		position = handleBoundariesPos(position);
+
+		position = clamp(position, vec4(0), box_size); // Prevent particles from leaving the simulation area
 
 		out_velocity_buffer[global_particle_index] = velocity;
 		out_position_buffer[global_particle_index] = position;

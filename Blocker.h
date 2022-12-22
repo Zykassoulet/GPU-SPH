@@ -25,6 +25,7 @@ private:
     vk::DescriptorSetLayout m_descriptor_set_layout;
     vk::Pipeline m_pipeline;
     vk::PipelineLayout m_pipeline_layout;
+    vk::Pipeline m_clear_pipeline;
 };
 
 

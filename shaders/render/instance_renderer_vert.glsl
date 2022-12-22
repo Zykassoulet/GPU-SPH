@@ -3,19 +3,18 @@
 layout (location = 0) in vec4 vPosition;
 layout (location = 1) in vec4 pPosition;
 
+layout (location = 0) out vec4 world_space_pos;
 
-layout(push_constant) uniform RendererPushConstants {
+layout(std430, push_constant) uniform RendererPushConstants {
+	mat4 view_proj;
 	float particle_radius;
 };
 
-mat4 view_matrix = mat4(1, 0, 0, 0, 
-				0, 1, 0, 0, 
-				0, 0, 1, 0, 
-				0, 0, 0, 1);
-
-
 void main()
 {
+	mat4 scale = mat4(particle_radius);
+	scale[3][3] = 1.0;
+
 	mat4 translation = mat4 (
 	1.0, 0.0, 0.0, 0.0,
 	0.0, 1.0, 0.0, 0.0,
@@ -23,5 +22,6 @@ void main()
 	pPosition.x, pPosition.y, pPosition.z, 1.0
 	);
 
-	gl_Position =  view_matrix * translation * particle_radius * vPosition;
+	gl_Position =  view_proj * translation * scale * vPosition;
+	world_space_pos = translation * scale * vPosition;
 }

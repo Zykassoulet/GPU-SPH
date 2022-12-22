@@ -33,8 +33,10 @@ void main() {
         Block b = uncompacted_block_buffer[gl_GlobalInvocationID.x];
         for (uint offset = 0; offset < b.num_particles; offset += max_particles_per_block) {
             uint i = atomicAdd(dispatch_block.x, 1);
+            dispatch_block.y = 1;
+            dispatch_block.z = 1;
             Block out_block;
-            out_block.first_particle_index = offset;
+            out_block.first_particle_index = offset + b.first_particle_index;
             out_block.num_particles = min(max_particles_per_block, b.num_particles - offset);
             if (i < compacted_block_buffer.length()) {
                 compacted_block_buffer[i] = out_block;

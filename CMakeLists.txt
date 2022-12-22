@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.20)
 project(project)
 set(CMAKE_CXX_STANDARD 20)
 
@@ -20,7 +20,7 @@ add_executable(project main.cpp
         InstanceRenderer.cpp
         Mesh.cpp)
 
-find_package(Vulkan REQUIRED dxc)
+find_package(Vulkan REQUIRED)
 add_subdirectory(vendor)
 
 
@@ -29,7 +29,7 @@ set(SHADER_BUILD_DIR shaders/build)
 function(compile_hlsl_shader SHADER_FILE SHADER_ENTRY_POINT)
     get_filename_component(SHADER_FILE_NAME ${SHADER_FILE} NAME_WE)
     set(SHADER_OUTPUT_FILE "${PROJECT_SOURCE_DIR}/${SHADER_BUILD_DIR}/${SHADER_FILE_NAME}_${SHADER_ENTRY_POINT}.spv")
-    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND ${Vulkan_dxc_EXECUTABLE} -spirv -fspv-target-env=vulkan1.1 -T cs_6_0 -E ${SHADER_ENTRY_POINT} ${PROJECT_SOURCE_DIR}/${SHADER_FILE} -Fo ${SHADER_OUTPUT_FILE})
+    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND dxc -spirv -fspv-target-env=vulkan1.1 -T cs_6_0 -E ${SHADER_ENTRY_POINT} ${PROJECT_SOURCE_DIR}/${SHADER_FILE} -Fo ${SHADER_OUTPUT_FILE})
 endfunction()
 
 function(compile_glsl_shader_comp SHADER_FILE)
@@ -59,6 +59,7 @@ compile_glsl_shader_comp(shaders/z_indexer/z_indexer.glsl)
 compile_glsl_shader_comp(shaders/physics_engine/density.glsl)
 compile_glsl_shader_comp(shaders/physics_engine/forces.glsl)
 compile_glsl_shader_comp(shaders/blocker/blocker.glsl)
+compile_glsl_shader_comp(shaders/blocker/block_buffer_clear.glsl)
 compile_glsl_shader_comp(shaders/blocker/compactor.glsl)
 compile_glsl_shader_frag(shaders/render/instance_renderer_frag.glsl)
 compile_glsl_shader_vert(shaders/render/instance_renderer_vert.glsl)

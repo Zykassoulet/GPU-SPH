@@ -91,7 +91,16 @@ vk::BufferMemoryBarrier bufferTransition(vk::Buffer buffer, vk::AccessFlags befo
 
 vk::BufferMemoryBarrier generalReadWriteBarrier(VulkanBuffer& buffer) {
     return bufferTransition(buffer.get(),
-                            vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
-                            vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+                            vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite,
+                            vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite,
                             buffer.get_size());
+}
+
+vk::ImageCreateInfo VulkanImage::create_info(vk::Format format, vk::ImageUsageFlags usage, vk::Extent3D extent) {
+    return {{}, vk::ImageType::e2D, format, extent, 1, 1, vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal, usage};
+}
+
+
+vk::ImageViewCreateInfo VulkanImage::view_create_info(vk::Format format, vk::Image image, vk::ImageAspectFlags aspect_flags) {
+    return {{}, image, vk::ImageViewType::e2D, format, {}, {aspect_flags, 0, 1, 0, 1}};
 }

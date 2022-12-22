@@ -1,6 +1,8 @@
 #include "InstanceRenderer.h"
 #include <array>
 #include "glm/glm.hpp"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/matrix_clip_space.hpp"
 #include <array>
 #include <iostream>
 
@@ -60,26 +62,63 @@ void InstanceRenderer::createRenderPass() {
     color_attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
     color_attachment.loadOp = vk::AttachmentLoadOp::eClear;
 
+    vk::AttachmentDescription depth_attachment({},
+                                               m_vk_context->m_depth_format,
+                                               vk::SampleCountFlagBits::e1,
+                                               vk::AttachmentLoadOp::eClear,
+                                               vk::AttachmentStoreOp::eDontCare,
+                                               vk::AttachmentLoadOp::eDontCare,
+                                               vk::AttachmentStoreOp::eDontCare,
+                                               vk::ImageLayout::eUndefined,
+                                               vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
     vk::AttachmentReference color_attachment_ref(0, vk::ImageLayout::eColorAttachmentOptimal);
+    vk::AttachmentReference depth_attachment_ref(1, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
     vk::SubpassDescription subpass;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment_ref;
+    subpass.pDepthStencilAttachment = &depth_attachment_ref;
 
-    vk::RenderPassCreateInfo render_pass_info({}, color_attachment, subpass);
+    auto attachments = std::array {
+        color_attachment,
+        depth_attachment
+    };
+
+    auto dependencies = std::array {
+        vk::SubpassDependency(VK_SUBPASS_EXTERNAL,
+                              0,
+                              vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                              vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                              {},
+                              vk::AccessFlagBits::eColorAttachmentWrite),
+        vk::SubpassDependency(VK_SUBPASS_EXTERNAL,
+                              0,
+                              vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests,
+                              vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests,
+                              {},
+                              vk::AccessFlagBits::eDepthStencilAttachmentWrite)
+    };
+
+    vk::RenderPassCreateInfo render_pass_info({}, attachments, subpass, dependencies);
     render_pass = m_vk_context->m_device.createRenderPass(render_pass_info);
 
-    deferDelete([=](auto m_vk_context) {
+    deferDelete([render_pass=render_pass](auto m_vk_context) {
         m_vk_context->m_device.destroyRenderPass(render_pass);
     });
 }
 
 void InstanceRenderer::createFrameBuffers() {
-    vk::FramebufferCreateInfo framebuffer_info({}, render_pass, 1, {}, m_vk_context->m_window_extent.width, m_vk_context->m_window_extent.height, 1);
+    vk::FramebufferCreateInfo framebuffer_info({}, render_pass, 2, {}, m_vk_context->m_window_extent.width, m_vk_context->m_window_extent.height, 1);
     u32 swapchain_image_count = m_vk_context->m_swapchain_images.size();
 
     for (int i = 0; i < swapchain_image_count; i++) {
-        framebuffer_info.pAttachments = &m_vk_context->m_swapchain_image_views[i];
+        auto attachments = std::array {
+            m_vk_context->m_swapchain_image_views[i],
+            m_vk_context->m_depth_image_view
+        };
+
+        framebuffer_info.pAttachments = attachments.data();
         framebuffers.push_back(m_vk_context->m_device.createFramebuffer(framebuffer_info));
         deferDelete([framebuffer= framebuffers[i]](auto m_vk_context) {
             m_vk_context->m_device.destroyFramebuffer(framebuffer);
@@ -123,6 +162,8 @@ void InstanceRenderer::createPipelines() {
     vk::Rect2D scissors({ 0, 0 }, m_vk_context->m_window_extent);
     vk::PipelineViewportStateCreateInfo viewport_state_info({}, viewport, scissors);
 
+    vk::PipelineDepthStencilStateCreateInfo depth_stencil_state({}, true, true, vk::CompareOp::eLessOrEqual, false, false);
+
     vk::GraphicsPipelineCreateInfo create_info(
         {},
         shader_stages_info,
@@ -132,7 +173,7 @@ void InstanceRenderer::createPipelines() {
         &viewport_state_info,
         &raster_state_info,
         &ms_state_info,
-        {},
+        &depth_stencil_state,
         &color_blend_state_info,
         {},
         pipeline_layout,
@@ -182,7 +223,7 @@ void InstanceRenderer::createSyncStructures() {
 }
 
 void InstanceRenderer::createMesh() {
-    triangle = Mesh::triangleMesh(m_vk_context);
+    particle_mesh = Mesh::unitIcosahedronMesh(m_vk_context);
 }
 
 void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& position_buffer) {
@@ -196,14 +237,24 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
     auto cmd_buf = std::move(m_vk_context->m_device.allocateCommandBuffersUnique(primary_cmd_buf_alloc_info).front());
     cmd_buf->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
-    vk::ClearColorValue color_value(std::array{ 0.f, 0.f, 0.f, 1.f });
-    vk::ClearValue clear_value(color_value);
+    vk::ClearColorValue color_value(std::array<f32, 4>{ 0.f, 0.f, 0.f, 1.f });
+    auto clear_values = std::array {
+        vk::ClearValue(color_value),
+        vk::ClearValue(vk::ClearDepthStencilValue(1.0f))
+    };
 
-    vk::RenderPassBeginInfo rp_begin_info(render_pass, framebuffers[image_index], { {0,0},m_vk_context->m_window_extent }, clear_value);
+    vk::RenderPassBeginInfo rp_begin_info(render_pass, framebuffers[image_index], { {0,0},m_vk_context->m_window_extent }, clear_values);
 
     cmd_buf->beginRenderPass(rp_begin_info, vk::SubpassContents::eInline);
 
+    glm::mat4 view = glm::lookAt(glm::vec3(1.5, 1.5, 1.5), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+    glm::mat4 proj = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+    proj[1][1] *= -1;
+
+    glm::mat4 view_proj = proj * view;
+
     auto push_constants = InstanceRendererPushConstants{
+        view_proj,
         simulation_params.particle_radius
     };
     cmd_buf->pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, vk::ArrayProxy<const InstanceRendererPushConstants>(push_constants));
@@ -218,20 +269,15 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
 
     vk::DeviceSize offset = 0;
 
-    cmd_buf->bindVertexBuffers(0, { triangle.getBuffer(), position_buffer.get() }, { offset, offset });
+    cmd_buf->bindVertexBuffers(0, {particle_mesh.getBuffer(), position_buffer.get() }, {offset, offset });
 
-    cmd_buf->draw(3, 
-    //    1,
+ //   cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
+
+    cmd_buf->draw(particle_mesh.vertex_count(),
         simulation_params.num_particles,
         0, 0);
 
 
-    //cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
-
-
-
-    //cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
- 
     cmd_buf->endRenderPass();
 
     cmd_buf->end();

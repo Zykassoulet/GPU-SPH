@@ -3,14 +3,9 @@
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-struct Particle {
-    float pos_x;
-    float pos_y;
-    float pos_z;
-};
 
 layout(std430, set = 0, binding = 0) readonly buffer ParticleBuffer {
-    Particle particle_buffer[];
+    vec4 particle_buffer[];
 };
 
 layout(std430, set = 0, binding = 1) writeonly buffer ZIndexBuffer {
@@ -45,12 +40,12 @@ void main() {
     uint num_particles = particle_buffer.length();
     if (particle_index < num_particles) {
         particle_index_buffer[particle_index] = particle_index;
-        Particle particle = particle_buffer[particle_index];
+        vec4 particle = particle_buffer[particle_index];
 
         uint z_index = 0;
-        z_index |= x_interleave_buffer[min(uint(floor(particle.pos_x / grid_unit_size)), grid_size_x - 1)];
-        z_index |= y_interleave_buffer[min(uint(floor(particle.pos_y / grid_unit_size)), grid_size_y - 1)];
-        z_index |= z_interleave_buffer[min(uint(floor(particle.pos_z / grid_unit_size)), grid_size_z - 1)];
+        z_index |= x_interleave_buffer[min(uint(floor(particle.x / grid_unit_size)), grid_size_x - 1)];
+        z_index |= y_interleave_buffer[min(uint(floor(particle.y / grid_unit_size)), grid_size_y - 1)];
+        z_index |= z_interleave_buffer[min(uint(floor(particle.z / grid_unit_size)), grid_size_z - 1)];
 
         z_index_buffer[particle_index] = z_index;
     }

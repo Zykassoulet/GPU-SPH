@@ -8,6 +8,14 @@
 
 #include "utils.h"
 
+struct VulkanImage {
+    vk::Image image;
+    VmaAllocation allocation;
+
+    static vk::ImageCreateInfo create_info(vk::Format format, vk::ImageUsageFlags usage, vk::Extent3D extent);
+    static vk::ImageViewCreateInfo view_create_info(vk::Format format, vk::Image image, vk::ImageAspectFlags aspect_flags);
+};
+
 class VulkanBuffer {
 public:
     VulkanBuffer() = default;

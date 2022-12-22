@@ -16,6 +16,7 @@ struct InstanceRendererDescriptorSets {
 };
 
 struct InstanceRendererPushConstants {
+    glm::mat4 view_proj;
     f32 particle_radius;
 };
 
@@ -23,7 +24,6 @@ struct InstanceRendererPushConstants {
 class InstanceRenderer : public SimulatorComputeStage {
 public:
     InstanceRenderer(std::shared_ptr<VulkanContext> vulkan_context);
-
 
     void render(SimulationParams simulation_params, VulkanBuffer& position_buffer);
 
@@ -51,7 +51,7 @@ private:
     vk::Fence finish_fence;
     vk::Semaphore present_semaphore;
     vk::Semaphore render_semaphore;
-    Mesh triangle;
+    Mesh particle_mesh;
 
 };
 
