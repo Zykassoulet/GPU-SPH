@@ -271,7 +271,7 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
 
     cmd_buf->bindVertexBuffers(0, {particle_mesh.getBuffer(), position_buffer.get() }, {offset, offset });
 
- //   cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
+  //  cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
 
     cmd_buf->draw(particle_mesh.vertex_count(),
         simulation_params.num_particles,

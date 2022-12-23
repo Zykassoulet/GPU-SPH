@@ -56,9 +56,10 @@ private:
 
     inline static const std::vector<const char*> device_extensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#ifdef __APPLE__
+            "VK_KHR_portability_subset",
+#endif
             VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME
-     //       VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME,
-     //       VK_GOOGLE_USER_TYPE_EXTENSION_NAME
     };
 
     #ifdef NDEBUG

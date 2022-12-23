@@ -10,6 +10,8 @@
 struct Vertex {
 	glm::vec3 position;
 	static std::vector<vk::VertexInputAttributeDescription> getVertexInputDescriptions(u32 binding);
+
+    Vertex(const glm::vec3& position) : position(position) {}
 };
 
 

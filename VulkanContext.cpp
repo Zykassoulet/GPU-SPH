@@ -60,6 +60,18 @@ void VulkanContext::createInstance() {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
+#ifdef __APPLE__
+    extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+#endif
+
+    auto instance_version = vk::enumerateInstanceVersion();
+    std::cout << "Vulkan version: " << VK_API_VERSION_MAJOR(instance_version) << "." << VK_API_VERSION_MINOR(instance_version)
+        << "." << VK_API_VERSION_PATCH(instance_version) << std::endl;
+    auto instance_extensions = vk::enumerateInstanceExtensionProperties();
+    std::cout << "Supported extensions:" << std::endl;
+    for (const auto& ext : instance_extensions) {
+        std::cout << (const char*) ext.extensionName << std::endl;
+    }
 
     if (enable_validation_layers && !checkValidationLayerSupport()) {
         throw std::runtime_error("Validation layers requested, but not available");
@@ -70,7 +82,19 @@ void VulkanContext::createInstance() {
                                  "Physically-based Simulation Project",
                                  1,
                                  VK_MAKE_VERSION(1, 2, 0));
-    vk::InstanceCreateInfo create_info({}, &app_info, 0, nullptr, static_cast<u32>(extensions.size()), extensions.data());
+
+    vk::InstanceCreateFlags flags = {};
+
+#ifdef __APPLE__
+    flags |= vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+#endif
+
+    vk::InstanceCreateInfo create_info(flags, &app_info, 0, nullptr, static_cast<u32>(extensions.size()), extensions.data());
+
+    std::cout << "Requested extensions:" << std::endl;
+    for (const auto& ext : extensions) {
+        std::cout << ext << std::endl;
+    }
 
     if (enable_validation_layers) {
         create_info.enabledLayerCount = static_cast<u32>(validation_layers.size());
