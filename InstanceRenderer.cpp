@@ -20,6 +20,7 @@ InstanceRenderer::InstanceRenderer(std::shared_ptr<VulkanContext> vulkan_context
 }
 
 
+
 void InstanceRenderer::createDescriptorPool() {
     SimulatorComputeStage::createDescriptorPool(10, {
         { vk::DescriptorType::eStorageBuffer,10 }
@@ -46,10 +47,11 @@ void InstanceRenderer::createDescriptorSets() {
 }
 
 void InstanceRenderer::createPipelineLayouts() {
-    vk::PushConstantRange constant_range(vk::ShaderStageFlagBits::eVertex, 0, sizeof(InstanceRendererPushConstants));
+    vk::PushConstantRange vert_constant_range(vk::ShaderStageFlagBits::eVertex, 0, sizeof(InstanceRendererPushConstants));
 
+    std::array<vk::PushConstantRange, 1> constant_ranges = { vert_constant_range };
 
-    vk::PipelineLayoutCreateInfo layout_create_info({}, {}, constant_range);
+    vk::PipelineLayoutCreateInfo layout_create_info({}, {}, constant_ranges);
     pipeline_layout = m_vk_context->m_device.createPipelineLayout(layout_create_info);
     deferDelete([layout = pipeline_layout](auto m_vk_context) {
         m_vk_context->m_device.destroyPipelineLayout(layout);
@@ -97,7 +99,13 @@ void InstanceRenderer::createRenderPass() {
                               vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests,
                               vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests,
                               {},
-                              vk::AccessFlagBits::eDepthStencilAttachmentWrite)
+                              vk::AccessFlagBits::eDepthStencilAttachmentWrite),
+  /*      vk::SubpassDependency(VK_SUBPASS_EXTERNAL,
+                              0,
+                              vk::PipelineStageFlagBits::eAllCommands,
+                              vk::PipelineStageFlagBits::eAllCommands,
+                              {},
+                              vk::AccessFlagBits::eVe)*/
     };
 
     vk::RenderPassCreateInfo render_pass_info({}, attachments, subpass, dependencies);
@@ -137,12 +145,15 @@ void InstanceRenderer::createPipelines() {
 
     vk::VertexInputBindingDescription binding_description(0, sizeof(Vertex), vk::VertexInputRate::eVertex);
     vk::VertexInputBindingDescription particle_pos_binding_description(1, sizeof(glm::vec4), vk::VertexInputRate::eInstance);
+    vk::VertexInputBindingDescription particle_vel_binding_description(2, sizeof(glm::vec4), vk::VertexInputRate::eInstance);
     auto attribute_description = Vertex::getVertexInputDescriptions(0);
     attribute_description.push_back(vk::VertexInputAttributeDescription(1, 1, vk::Format::eR32G32B32A32Sfloat, 0));
+    attribute_description.push_back(vk::VertexInputAttributeDescription(2, 2, vk::Format::eR32G32B32A32Sfloat, 0));
 
     auto binding_descriptions = std::array{
         binding_description,
-        particle_pos_binding_description
+        particle_pos_binding_description,
+        particle_vel_binding_description
     };
     
     vk::PipelineVertexInputStateCreateInfo vertex_input_state_info({}, binding_descriptions, attribute_description);
@@ -162,7 +173,7 @@ void InstanceRenderer::createPipelines() {
     vk::Rect2D scissors({ 0, 0 }, m_vk_context->m_window_extent);
     vk::PipelineViewportStateCreateInfo viewport_state_info({}, viewport, scissors);
 
-    vk::PipelineDepthStencilStateCreateInfo depth_stencil_state({}, true, true, vk::CompareOp::eLessOrEqual, false, false);
+    vk::PipelineDepthStencilStateCreateInfo depth_stencil_state({}, true, true, vk::CompareOp::eLess, false, false);
 
     vk::GraphicsPipelineCreateInfo create_info(
         {},
@@ -220,13 +231,23 @@ void InstanceRenderer::createSyncStructures() {
     finish_fence = m_vk_context->m_device.createFence({});
     present_semaphore = m_vk_context->m_device.createSemaphore({});
     render_semaphore = m_vk_context->m_device.createSemaphore({});
+    deferDelete([fence = finish_fence](auto m_vk_context) {
+        m_vk_context->m_device.destroyFence(fence);
+        });
+    deferDelete([semaphore = present_semaphore](auto m_vk_context) {
+        m_vk_context->m_device.destroySemaphore(semaphore);
+        });
+    deferDelete([semaphore = render_semaphore](auto m_vk_context) {
+        m_vk_context->m_device.destroySemaphore(semaphore);
+        });
+
 }
 
 void InstanceRenderer::createMesh() {
     particle_mesh = Mesh::unitIcosahedronMesh(m_vk_context);
 }
 
-void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& position_buffer) {
+void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer) {
 
     m_vk_context->m_device.resetFences(finish_fence);
 
@@ -257,10 +278,14 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
         view_proj,
         simulation_params.particle_radius
     };
+
+
     cmd_buf->pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, vk::ArrayProxy<const InstanceRendererPushConstants>(push_constants));
+
 
     auto barriers = std::array{
             generalReadWriteBarrier(position_buffer),
+            generalReadWriteBarrier(velocity_buffer),
     };
 
 
@@ -269,9 +294,9 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
 
     vk::DeviceSize offset = 0;
 
-    cmd_buf->bindVertexBuffers(0, {particle_mesh.getBuffer(), position_buffer.get() }, {offset, offset });
+    cmd_buf->bindVertexBuffers(0, {particle_mesh.getBuffer(), position_buffer.get(), velocity_buffer.get()}, {offset, offset, offset});
 
-  //  cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
+    //cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
 
     cmd_buf->draw(particle_mesh.vertex_count(),
         simulation_params.num_particles,
@@ -289,7 +314,7 @@ void InstanceRenderer::render(SimulationParams simulation_params, VulkanBuffer& 
 
     m_vk_context->m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
 
-    vk::PresentInfoKHR present_info(render_semaphore, m_vk_context->m_swapchain, image_index);
+    vk::PresentInfoKHR present_info(render_semaphore, m_vk_context->m_swapchain, image_index);      
 
     m_vk_context->m_queues.present.presentKHR(present_info);
 

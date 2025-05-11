@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include "VulkanInclude.h"
 #include <GLFW/glfw3.h>
 
@@ -52,7 +53,7 @@ private:
     // Vulkan stuff
     inline static const std::vector<const char*> validation_layers = {
             "VK_LAYER_KHRONOS_validation"
-    };;
+    };
 
     inline static const std::vector<const char*> device_extensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -124,6 +125,7 @@ private:
     vk::ImageView m_depth_image_view;
     vk::Format m_depth_format;
 
+    void destroyImage(VulkanImage image);
     void destroyVmaAllocator();
 
     friend class GPURadixSorter;

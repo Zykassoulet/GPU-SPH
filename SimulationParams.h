@@ -6,6 +6,7 @@
 struct SimulationParams {
     u32 num_particles;  //
     u32 num_blocks;
+    u32 max_num_compacted_blocks;
     f32 kernel_radius;  //
     f32 particle_mass;  //
     f32 stiffness;     //

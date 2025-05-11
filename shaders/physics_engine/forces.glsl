@@ -6,7 +6,7 @@
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(std140, push_constant) uniform DensityComputePushConstants {
+layout(std140, push_constant) uniform ForceComputePushConstants {
 	ivec4 simulation_domain; // In Z-index space (real space/grid spacing)
 	vec4 box_size;
 	uint block_size; // In Z-index space (real space/grid spacing)
@@ -67,9 +67,28 @@ struct ParticleInfo {
 	float density;
 	float pressure;
 	vec4 velocity;
+	uint global_id;
 };
 
 shared ParticleInfo sParticles[256];
+
+
+vec3 ihash(uvec3 x) //  https://www.shadertoy.com/view/XlXcW4
+{
+	uint k = 1103515245U;  // GLIB C
+	x = ((x >> 8U) ^ x.yzx) * k;
+	x = ((x >> 8U) ^ x.yzx) * k;
+	x = ((x >> 8U) ^ x.yzx) * k;
+
+	return vec3(x) * (1.0 / float(0xffffffffU));
+}
+
+vec4 randomDir(uvec3 x) {
+	vec3 rand_vec = ihash(x);
+	float d = length(rand_vec);
+	rand_vec = rand_vec / d;
+	return vec4(rand_vec.x, rand_vec.y, rand_vec.z, 0.);
+}
 
 uint getGlobalParticleIndex(Block block, uint particle_offset) {
 	uint particle_index_buffer_index = block.first_particle_index + particle_offset;
@@ -87,6 +106,8 @@ void fetchParticle(uint source_block_index, uint particle_offset, uint block_off
 		sParticles[particle_offset].density = density_buffer[global_particle_index];
 		sParticles[particle_offset].velocity = velocity_buffer[global_particle_index];
 		sParticles[particle_offset].pressure = pressure_buffer[global_particle_index];
+		sParticles[particle_offset].global_id = global_particle_index;
+
 	}
 }
 
@@ -101,17 +122,19 @@ ParticleInfo fetchCurrentParticle(Block current_block, uint particle_offset) {
 		particle.density = density_buffer[global_particle_index];
 		particle.velocity = velocity_buffer[global_particle_index];
 		particle.pressure = pressure_buffer[global_particle_index];
+		particle.global_id = global_particle_index;
+
 	}
 	return particle;
 }
 
 float gradSpikyKernelC = -45.f / (pi * pow(kernel_radius,6));
-vec4 gradSpikyKernel(vec4 dx){
+vec4 gradSpikyKernel(vec4 dx, vec4 rand_dir){
 	float d = length(dx);
 	float a = kernel_radius - d;
-	if (d == 0.0)
-		return vec4(0);
-	return a > 0 ? gradSpikyKernelC * a * a * dx / d : vec4(0);
+	vec4 dir = d == 0 ? vec4(0,0,0,0) : dx / d;
+	//vec4 dir = d == 0 ? rand_dir : dx / d;
+	return a > 0 ? gradSpikyKernelC * a * a * dir : vec4(0);
 }
 
 uint deinterleave(uint value, uint offset, uint spacing) {
@@ -132,24 +155,21 @@ uint interleave(uint value, uint offset, uint spacing) {
 	return o;
 }
 
-vec4 handleBoundariesPos(vec4 pos){
-	
-	pos.x = particle_radius + abs(pos.x - particle_radius);
-	pos.x = box_size.x - particle_radius - abs(box_size.x - particle_radius - pos.x);
-	pos.y = particle_radius + abs(pos.y - particle_radius);
-	pos.y = box_size.y - particle_radius - abs(box_size.y - particle_radius - pos.y);
-	pos.z = particle_radius + abs(pos.z - particle_radius);
-	pos.z = box_size.z - particle_radius - abs(box_size.z - particle_radius - pos.z);
+
+vec4 handleBoundariesPos(vec4 pos) {
+	vec4 r = vec4(particle_radius, particle_radius, particle_radius, 0);
+	pos = clamp(pos, r, box_size - r);
 	return pos;
 }
 
-vec4 handleBoundariesVel(vec4 pos, vec4 vel){
-	vel.x = sign(pos.x - particle_radius) * vel.x;
-	vel.x = sign(box_size.x - particle_radius - pos.x) * vel.x;
-	vel.y = sign(pos.y - particle_radius) * vel.y;
-	vel.y = sign(box_size.y - particle_radius - pos.y) * vel.y;
-	vel.z = sign(pos.z - particle_radius) * vel.z;
-	vel.z = sign(box_size.z - particle_radius - pos.z) * vel.z;
+
+#define COLLISION_DAMPING 0.95
+vec4 handleBoundariesVel(vec4 pos, vec4 vel) {
+	vec4 center_offset = pos - box_size / 2.;
+	vel.x = abs(center_offset.x) + particle_radius - box_size.x / 2. > 0. ? -COLLISION_DAMPING * vel.x : vel.x;
+	vel.y = abs(center_offset.y) + particle_radius - box_size.y / 2. > 0. ? -COLLISION_DAMPING * vel.y : vel.y;
+	vel.z = abs(center_offset.z) + particle_radius - box_size.z / 2. > 0. ? -COLLISION_DAMPING * vel.z : vel.z;
+
 	return vel;
 }
 
@@ -189,14 +209,20 @@ void main() {
 					for (uint block_offset = 0; block_offset < neighbor_num_particles; block_offset += 256) {
 						fetchParticle(uint(neighbor_block_index), particle_index, block_offset);
 
+						memoryBarrierShared();
 						barrier();
 
 						if (current_particle.valid) {
-							for (int o = 0; o < 256; o++) {
-								if (sParticles[o].valid) {
-									force -= (particle_mass/sParticles[o].density)
-									* (current_particle.pressure + sParticles[o].pressure)/2.0
-									* gradSpikyKernel(current_particle.position - sParticles[o].position);
+							for (uint o = 0; o < 256; o++) {
+								if (sParticles[o].valid && (sParticles[o].global_id != current_particle.global_id)) {
+									vec4 rand_dir = randomDir(uvec3(sParticles[o].global_id, current_particle.global_id, o));
+									//force -= (particle_mass/sParticles[o].density)
+									//* (current_particle.pressure + sParticles[o].pressure)/2.0
+									//* gradSpikyKernel(current_particle.position - sParticles[o].position, rand_dir);
+
+									force -= particle_mass
+									* (current_particle.pressure / (current_particle.density * current_particle.density) + sParticles[o].pressure / (sParticles[o].density * sParticles[o].density))
+									* gradSpikyKernel(current_particle.position - sParticles[o].position, rand_dir);
 								}
 							}
 						}
@@ -206,16 +232,17 @@ void main() {
 		}
 	}
 
-	force += particle_mass * vec4(0, 0, -9.81, 0); // Gravity
+	vec4 gravity_acceleration = vec4(0, 0, -1., 0); // Gravity
 
 	uint global_particle_index = getGlobalParticleIndex(current_block, particle_index);
 	if (current_particle.valid) {
-		vec4 velocity = velocity_buffer[global_particle_index] + dt * force/particle_mass;
+		//vec4 velocity = (force / current_particle.density + gravity_acceleration);
+		vec4 velocity = velocity_buffer[global_particle_index] + dt * (force + gravity_acceleration);
+		//vec4 velocity = velocity_buffer[global_particle_index] + dt * (force / current_particle.density + gravity_acceleration);
 		vec4 position = position_buffer[global_particle_index] + dt * velocity;
 		velocity = handleBoundariesVel(position, velocity);
 		position = handleBoundariesPos(position);
 
-		position = clamp(position, vec4(0), box_size); // Prevent particles from leaving the simulation area
 
 		out_velocity_buffer[global_particle_index] = velocity;
 		out_position_buffer[global_particle_index] = position;

@@ -22,13 +22,14 @@ PhysicsEngine::PhysicsEngine(std::shared_ptr<VulkanContext> vulkan_context, Simu
 
 std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulationParams() {
     SimulationParams sim_params;
-    auto real_region_size = glm::vec3(1.f, 1.f, 1.f);
+    auto real_region_size = glm::vec3(1.f, 1.f, 1.f);   // m
     sim_params.box_size = glm::vec4(real_region_size, 0);
-    auto initial_liquid_region = glm::vec3(1.f, 1.f, 1.f);
-    sim_params.rest_density = 1000.f;
-    sim_params.stiffness = sim_params.rest_density;
-    float initial_spacing = 0.08f;
-    sim_params.kernel_radius = 5. * initial_spacing;
+    auto initial_liquid_region = glm::vec3(1.f, 1.f, 0.5f); // m
+    //auto initial_liquid_region = glm::vec3(0.5f, 1.f, 1.f); // m
+    sim_params.rest_density = 1000.f;   // kg/m^3
+    sim_params.stiffness = 10.f; // m/s
+    float initial_spacing = 0.27f;  // m
+    sim_params.kernel_radius = 2. * initial_spacing;    //m
     sim_params.particle_mass = sim_params.rest_density * pow(initial_spacing, 3);
 
     std::array<float, 3> k_min{ 0.f, 0.f, 0.f };
@@ -43,14 +44,15 @@ std::pair<std::vector<glm::vec4>, SimulationParams> PhysicsEngine::createSimulat
     );
 
 
-    sim_params.grid_size = glm::ivec4(1024, 1024, 1024, 0);
+    sim_params.grid_size = glm::ivec4(1024, 1024, 1024, 0); //Max 1024
     sim_params.grid_unit = 1.0/1024.0;
     sim_params.block_size = std::max(1u, (1u << (u32) std::ceil(std::log2(sim_params.kernel_radius / sim_params.grid_unit))));
-    sim_params.num_blocks = 2 * (sim_params.grid_size.x/sim_params.block_size) * (sim_params.grid_size.y/sim_params.block_size) * (sim_params.grid_size.z/sim_params.block_size);
+    sim_params.num_blocks = (sim_params.grid_size.x/sim_params.block_size) * (sim_params.grid_size.y/sim_params.block_size) * (sim_params.grid_size.z/sim_params.block_size);
+    sim_params.max_num_compacted_blocks = sim_params.num_blocks + sim_params.num_particles / 256 + 1;
 
     sim_params.gas_gamma = 1.0;
     sim_params.particle_radius = initial_spacing/2.f;
-    sim_params.dt = 0.01; //TO TWEAK
+    sim_params.dt = 0.002; //TO TWEAK
 
     std::cout << "Number of particles: " << sim_params.num_particles << std::endl;
 
@@ -66,10 +68,10 @@ void PhysicsEngine::initBuffers(std::vector<glm::vec4>& particle_positions) {
     m_buffers.position[0] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
     m_buffers.position[1] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
 
-    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
-
     m_buffers.velocity[0] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
     m_buffers.velocity[1] = m_vk_context->createBuffer(usage, sizeof(glm::vec4), m_sim_params.num_particles);
+
+    usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
 
     m_buffers.density = m_vk_context->createBuffer(usage, sizeof(f32), m_sim_params.num_particles);
     m_buffers.pressure = m_vk_context->createBuffer(usage, sizeof(f32), m_sim_params.num_particles);
@@ -80,7 +82,7 @@ void PhysicsEngine::initBuffers(std::vector<glm::vec4>& particle_positions) {
     m_buffers.sort_val_ping_pong = m_vk_context->createBuffer(usage, sizeof(u32), m_sim_params.num_particles);
 
     m_buffers.uncompacted_block = m_vk_context->createBuffer(usage, sizeof(BlockData), m_sim_params.num_blocks);
-    m_buffers.compacted_block = m_vk_context->createBuffer(usage, sizeof(BlockData), m_sim_params.num_blocks);
+    m_buffers.compacted_block = m_vk_context->createBuffer(usage, sizeof(BlockData), m_sim_params.max_num_compacted_blocks);
 
     usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer;
     m_buffers.dispatch_indirect = m_vk_context->createBuffer(usage, sizeof(vk::DispatchIndirectCommand), 1);
@@ -174,6 +176,7 @@ void PhysicsEngine::step() {
     m_vk_context->m_queues.compute.submit(submit_info, finish_fence);
 
     auto _ = m_vk_context->m_device.waitForFences(finish_fence, VK_TRUE, std::numeric_limits<u64>::max());
+    m_vk_context->m_device.destroyFence(finish_fence);
 
     m_ping_pong_idx = next_ping_pong_idx;
 }

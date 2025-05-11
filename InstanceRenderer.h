@@ -21,11 +21,12 @@ struct InstanceRendererPushConstants {
 };
 
 
+
 class InstanceRenderer : public SimulatorComputeStage {
 public:
     InstanceRenderer(std::shared_ptr<VulkanContext> vulkan_context);
 
-    void render(SimulationParams simulation_params, VulkanBuffer& position_buffer);
+    void render(SimulationParams simulation_params, VulkanBuffer& position_buffer, VulkanBuffer& velocity_buffer);
 
 
 private:

@@ -53,6 +53,9 @@ Mesh Mesh::unitIcosahedronMesh(std::shared_ptr<VulkanContext> vk_context) {
     float phi = (1.0f + sqrt(5.0f)) * 0.5f; // golden ratio
     float a = 1.0f;
     float b = 1.0f / phi;
+    float d = glm::length(glm::vec2(a, b));
+    a = a / d;
+    b = b / d;
 
     // add vertices
     auto v1  = glm::vec3(0, b, -a);

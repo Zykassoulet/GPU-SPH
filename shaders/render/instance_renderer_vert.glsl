@@ -2,10 +2,13 @@
 
 layout (location = 0) in vec4 vPosition;
 layout (location = 1) in vec4 pPosition;
+layout (location = 2) in vec4 pVelocity;
 
 layout (location = 0) out vec4 world_space_pos;
+layout(location = 1) out float pVelocityAbs;
 
-layout(std430, push_constant) uniform RendererPushConstants {
+
+layout(push_constant) uniform RendererPushConstants {
 	mat4 view_proj;
 	float particle_radius;
 };
@@ -24,4 +27,6 @@ void main()
 
 	gl_Position =  view_proj * translation * scale * vPosition;
 	world_space_pos = translation * scale * vPosition;
+	pVelocityAbs = length(pVelocity);
+
 }

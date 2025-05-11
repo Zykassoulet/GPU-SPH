@@ -15,6 +15,9 @@ layout(std140, push_constant) uniform DensityComputePushConstants {
 	float gamma;
 };
 
+uint S3 = block_size * block_size * block_size;
+uint max_block_z_index = uint(simulation_domain * simulation_domain * simulation_domain / S3);
+
 layout(set = 0, binding = 0) readonly buffer ZIndexBuffer {
 	uint z_index_buffer[];
 };
@@ -49,11 +52,14 @@ layout(std430, set = 1, binding = 1) readonly buffer CompactedBlockBuffer {
 };
 
 struct ParticleInfo {
-	bool valid;
 	vec4 position;
+	bool valid;
 };
 
 shared ParticleInfo sParticles[256];
+
+
+
 
 uint getGlobalParticleIndex(Block block, uint particle_offset) {
 	uint particle_index_buffer_index = block.first_particle_index + particle_offset;
@@ -64,19 +70,18 @@ void fetchParticle(uint source_block_index, uint particle_offset, uint block_off
 	Block source_block = uncompacted_block_buffer[source_block_index];
 	uint particle_index = block_offset + particle_offset;
 	uint global_particle_index = getGlobalParticleIndex(source_block, particle_index);
-
 	sParticles[particle_offset].valid = (particle_index < source_block.num_particles);
 	if ((particle_index < source_block.num_particles)) {
 		sParticles[particle_offset].position = position_buffer[global_particle_index];
 	}
 }
 
-ParticleInfo fetchCurrentParticle(Block current_block, uint particle_offset) {
-	uint global_particle_index = getGlobalParticleIndex(current_block, particle_offset);
+ParticleInfo fetchCurrentParticle(Block current_comp_block, uint particle_offset) {
+	uint global_particle_index = getGlobalParticleIndex(current_comp_block, particle_offset);
 
 	ParticleInfo particle;
 
-	particle.valid = (particle_offset < current_block.num_particles);
+	particle.valid = (particle_offset < current_comp_block.num_particles);
 	if (particle.valid) {
 		particle.position = position_buffer[global_particle_index];
 	}
@@ -91,6 +96,50 @@ float poly6Kernel(float d_2){
 	return d_2 < h_2 ? res : 0;
 }
 
+float spikyKernelC = 15.f / (pi * pow(kernel_radius, 6));
+float spikyKernel(float d) {
+	float a = kernel_radius - d;
+	return a > 0 ? spikyKernelC * a * a * a : 0;
+}
+
+
+
+#define ONE_X 1
+#define ONE_Y 2
+#define ONE_Z 4
+#define MINUS_ONE_X 0x49249249
+#define MINUS_ONE_Y 0x92492492
+#define MINUS_ONE_Z 0x24924924
+
+
+uint add_bitshift_3(uint a, uint b) {
+
+	while (b != 0) {
+		uint carry = a & b;
+		a = a ^ b;
+		b = carry << 3;
+	}
+	return a;
+}
+
+
+uint getNeighborBlockIndex(Block block, ivec3 offset) {		//fails if block_size = 1
+	uint block_z_index = z_index_buffer[block.first_particle_index] / S3;
+	uint to_add = 0;
+	to_add |= max(0, offset.x) * ONE_X | max(0, -offset.x) * MINUS_ONE_X;
+	to_add |= max(0, offset.y) * ONE_Y | max(0, -offset.y) * MINUS_ONE_Y;
+	to_add |= max(0, offset.z) * ONE_Z | max(0, -offset.z) * MINUS_ONE_Z;
+	uint neighbor_block_z_index = add_bitshift_3(block_z_index,  to_add);
+	return neighbor_block_z_index;
+}
+
+bool isBlockIndexInBounds(uint z_index) {
+	return (z_index < max_block_z_index);
+}
+
+
+
+/*
 uint deinterleave(uint value, uint offset, uint spacing) {
 	uint o = 0;
 	uint i = 0;
@@ -108,6 +157,7 @@ uint interleave(uint value, uint offset, uint spacing) {
 	}
 	return o;
 }
+
 
 int getNeighborBlockIndex(Block block, ivec3 offset) {
 	uint S3 = block_size * block_size * block_size;
@@ -129,28 +179,34 @@ int getNeighborBlockIndex(Block block, ivec3 offset) {
 		return -1;
 	}
 }
+*/
+
+
 
 void main() {
-	Block current_block = compacted_block_buffer[gl_WorkGroupID.x];
-	uint particle_index = gl_LocalInvocationID.x;
+	Block current_comp_block = compacted_block_buffer[gl_WorkGroupID.x];
+	uint local_particle_id = gl_LocalInvocationID.x;	
 	float local_density = 0;
-	ParticleInfo current_particle = fetchCurrentParticle(current_block, particle_index);
+	ParticleInfo current_particle = fetchCurrentParticle(current_comp_block, local_particle_id);
 
 	for (int i = -1; i <= 1; i++) {
 		for (int j = -1; j <= 1; j++){
 			for (int k = -1; k <= 1; k++){
-				int neighbor_block_index = getNeighborBlockIndex(current_block, ivec3(i,j,k));
-				if (neighbor_block_index != -1) {
+				uint neighbor_block_index = getNeighborBlockIndex(current_comp_block, ivec3(i,j,k));
+				bool in_bounds = isBlockIndexInBounds(neighbor_block_index);
+				if (in_bounds) {
 					uint neighbor_num_particles = uncompacted_block_buffer[neighbor_block_index].num_particles;
 					for (uint block_offset = 0; block_offset < neighbor_num_particles; block_offset += 256) {
-						fetchParticle(uint(neighbor_block_index), particle_index, block_offset);
+						fetchParticle(neighbor_block_index, local_particle_id, block_offset);
 
+						memoryBarrierShared();
 						barrier();
 
 						if (current_particle.valid) {
 							for (int o = 0; o < 256; o++) {
 								if (sParticles[o].valid) {
 									vec4 dx = sParticles[o].position - current_particle.position;
+									//local_density += particle_mass * spikyKernel(length(dx));
 									local_density += particle_mass * poly6Kernel(dot(dx, dx));
 								}
 							}
@@ -161,10 +217,10 @@ void main() {
 		}
 	}
 
-	uint global_particle_index = getGlobalParticleIndex(current_block, particle_index);
+	uint global_particle_index = getGlobalParticleIndex(current_comp_block, local_particle_id);
 	if (current_particle.valid) {
 		density_buffer[global_particle_index] = local_density;
-		float pressure = (stiffness * rest_density / gamma) * (pow(local_density/rest_density, gamma) - 1.0f);
+		float pressure = max(0.,(stiffness * rest_density / gamma) * (pow(local_density/rest_density, gamma) - 1.0f));
 		pressure_buffer[global_particle_index] = pressure;
 	}
 }

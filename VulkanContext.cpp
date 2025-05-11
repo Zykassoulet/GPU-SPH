@@ -6,6 +6,11 @@
 #include <limits>
 #include <algorithm>
 
+#ifndef NDEBUG
+    #define VMA_DEBUG_LOG(format, ...) printf(format, ##__VA_ARGS__)
+#endif
+
+
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
 
 VulkanContext::VulkanContext() {
@@ -31,9 +36,13 @@ VulkanContext::~VulkanContext() {
     for (auto imageView : m_swapchain_image_views) {
         m_device.destroyImageView(imageView);
     }
+
+    m_device.destroyImageView(m_depth_image_view);
+
+    destroyImage(m_depth_image);
     
     m_device.destroySwapchainKHR(m_swapchain);
-    
+
     destroyVmaAllocator();
     m_device.destroy();
 
@@ -108,7 +117,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(VkDebugUtilsMessageS
                                                     VkDebugUtilsMessageTypeFlagBitsEXT message_type,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                                     void* user_data) {
-    if (message_severity > VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    if (message_severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
         std::cerr << "validation layer: " << callback_data->pMessage << std::endl;
 
     return VK_FALSE;
@@ -156,19 +165,22 @@ void VulkanContext::setupDebugMessenger() {
     if (!enable_validation_layers) {
         m_debug_messenger =  {};
     }
+    else {
+        using severity = vk::DebugUtilsMessageSeverityFlagBitsEXT;
+        using type = vk::DebugUtilsMessageTypeFlagBitsEXT;
 
-    using severity = vk::DebugUtilsMessageSeverityFlagBitsEXT;
-    using type = vk::DebugUtilsMessageTypeFlagBitsEXT;
+        vk::DebugUtilsMessengerCreateInfoEXT create_info(
+            {},
+            severity::eWarning | severity::eError,
+            type::ePerformance | type::eValidation | type::eGeneral,
+            (PFN_vkDebugUtilsMessengerCallbackEXT) debugCallback,
+            nullptr
+        );
 
-    vk::DebugUtilsMessengerCreateInfoEXT create_info(
-        {},
-        severity::eVerbose | severity::eWarning | severity::eError,
-        type::eGeneral | type::ePerformance | type::eValidation,
-        (PFN_vkDebugUtilsMessengerCallbackEXT) debugCallback,
-        nullptr
-    );
+         m_debug_messenger = m_instance.createDebugUtilsMessengerEXT(create_info, nullptr);
 
-     m_debug_messenger = m_instance.createDebugUtilsMessengerEXT(create_info, nullptr);
+    }
+
 }
 
 vk::PhysicalDevice VulkanContext::pickPhysicalDevice() {
@@ -364,6 +376,7 @@ void VulkanContext::createSwapchain() {
             1
     };
 
+
     m_depth_format = vk::Format::eD32Sfloat;
 
     auto depth_image_create_info = VulkanImage::create_info(m_depth_format, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_image_extent);
@@ -427,6 +440,10 @@ void VulkanContext::createVmaAllocator() {
 
 void VulkanContext::destroyVmaAllocator() {
     vmaDestroyAllocator(m_allocator);
+}
+
+void VulkanContext::destroyImage(VulkanImage image) {
+    vmaDestroyImage(m_allocator, image.image, image.allocation);
 }
 
 void VulkanContext::createComputeCommandPool() {

@@ -17,8 +17,8 @@
 #include "ForceCompute.h"
 
 struct BlockData {
-	u32 number_particles;
 	u32 first_particles_offset;
+	u32 number_particles;
 };
 
 struct PhysicsEngineBuffers {
@@ -46,6 +46,7 @@ public:
 
     inline SimulationParams getSimulationParams() { return m_sim_params; }
     inline VulkanBuffer& getLastPositionBuffer() { return m_buffers.position[m_ping_pong_idx]; }
+    inline VulkanBuffer& getLastVelocityBuffer() { return m_buffers.velocity[m_ping_pong_idx]; }
 
 private:
     void initBuffers(std::vector<glm::vec4>& particle_positions);

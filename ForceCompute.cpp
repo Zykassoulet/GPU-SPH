@@ -148,7 +148,7 @@ ForceCompute::computeForces(SimulationParams simulation_params, VulkanBuffer &z_
 	cmd_buf->pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, {}, {}, barriers, {});
 
 	cmd_buf->end();
-
+    
 	return cmd_buf;
 }
 

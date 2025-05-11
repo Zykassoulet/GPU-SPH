@@ -18,7 +18,7 @@ struct VulkanImage {
 
 class VulkanBuffer {
 public:
-    VulkanBuffer() = default;
+    VulkanBuffer() : m_allocation(nullptr) {};
     VulkanBuffer(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, size_t object_size, size_t object_count, VmaAllocationCreateInfo alloc_info = {});
     VulkanBuffer(VmaAllocator& allocator, vk::BufferCreateInfo& create_info, VmaAllocationCreateInfo alloc_info = {});
 

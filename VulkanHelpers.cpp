@@ -49,7 +49,11 @@ VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept
     object_size(other.object_size),
     object_count(other.object_count) {}
 
-VulkanBuffer &VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
+VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
+    if (m_allocation != nullptr) {
+        //std::cout << "Buffer :" << m_buffer << ", Allocator : " << m_allocator;
+        vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
+    }
     m_allocation = nullptr;
     std::swap(m_allocation, other.m_allocation);
     m_buffer = other.m_buffer;
